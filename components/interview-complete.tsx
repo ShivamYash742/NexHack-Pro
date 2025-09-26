@@ -3,13 +3,47 @@ import { CheckCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-const InterviewComplete = () => {
+interface InterviewCompleteProps {
+  interviewId?: string;
+  sessionId?: string | null;
+}
+
+const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sessionId }) => {
   const [showAnimation, setShowAnimation] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportGenerated, setReportGenerated] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowAnimation(true), 200);
     return () => clearTimeout(timer);
   }, []);
+
+  const generateReport = async () => {
+    if (!interviewId || !sessionId) return;
+    
+    setGeneratingReport(true);
+    try {
+      const response = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          interviewId,
+          sessionId,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setReportGenerated(true);
+      }
+    } catch (error) {
+      console.error('Error generating report:', error);
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background">
@@ -51,18 +85,38 @@ const InterviewComplete = () => {
           </p>
         </div>
 
-        {/* Action Button */}
+        {/* Action Buttons */}
         <div
-          className={`flex justify-center transition-all duration-1000 delay-500 ${
+          className={`flex flex-col sm:flex-row justify-center gap-4 transition-all duration-1000 delay-500 ${
             showAnimation
               ? 'translate-y-0 opacity-100'
               : 'translate-y-10 opacity-0'
           }`}
         >
-          <Button size="lg" asChild>
+          {!reportGenerated && interviewId && sessionId && (
+            <Button 
+              size="lg" 
+              onClick={generateReport}
+              disabled={generatingReport}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {generatingReport ? 'Generating Report...' : 'Generate Detailed Report'}
+            </Button>
+          )}
+          
+          {reportGenerated && (
+            <Button size="lg" asChild className="bg-green-600 hover:bg-green-700">
+              <Link href={`/report/${interviewId}`}>
+                View Report
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Link>
+            </Button>
+          )}
+          
+          <Button size="lg" variant="outline" asChild>
             <Link href="/interview/new">
               Take New Interview
-              <ArrowRight />
+              <ArrowRight className="ml-2 w-4 h-4" />
             </Link>
           </Button>
         </div>

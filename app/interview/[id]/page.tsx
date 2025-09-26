@@ -199,6 +199,7 @@ export default function InterviewPage() {
   return (
     <StreamingAvatarProvider basePath={process.env.NEXT_PUBLIC_BASE_API_URL}>
       <Interview
+        interviewId={interview._id}
         mentorId={interview.mentorId}
         role={interview.jobTitle}
         knowledgeBase={getKnowledgeBase(interview)}

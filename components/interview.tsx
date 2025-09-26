@@ -23,6 +23,7 @@ import {
   StreamingAvatarSessionState,
   useStreamingAvatarSession,
   useVoiceChat,
+  useTextChat,
 } from './logic';
 import {
   AvatarQuality,
@@ -79,17 +80,20 @@ const DEFAULT_CONFIG: StartAvatarRequest = {
 };
 
 const Interview = ({
+  interviewId,
   knowledgeBase,
   role,
   mentorId,
 }: {
+  interviewId: string;
   knowledgeBase: string;
   role: string;
   mentorId: string;
 }) => {
-  const { initAvatar, startAvatar, stopAvatar, sessionState, stream } =
+  const { initAvatar, startAvatar, stopAvatar, sessionState, stream, avatarRef } =
     useStreamingAvatarSession();
   const { startVoiceChat } = useVoiceChat();
+  const { sendMessage: speakMessage } = useTextChat();
 
   const [config] = useState<StartAvatarRequest>({
     ...DEFAULT_CONFIG,
@@ -106,20 +110,19 @@ const Interview = ({
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [isInterviewComplete, setIsInterviewComplete] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'interviewer',
-      text: "Hello! Welcome to your mock interview. I'm excited to speak with you today.",
-      timestamp: new Date(Date.now() - 300000),
-    },
-    {
-      id: 2,
-      sender: 'user',
-      text: "Thank you! I'm ready to begin.",
-      timestamp: new Date(Date.now() - 240000),
-    },
-  ]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [lastSpeechTime, setLastSpeechTime] = useState<number>(Date.now());
+  const [speechStartTime, setSpeechStartTime] = useState<number | null>(null);
+  const [pauseStartTime, setPauseStartTime] = useState<number | null>(null);
+  const [conversationMetrics, setConversationMetrics] = useState({
+    totalPauses: 0,
+    totalPauseTime: 0,
+    longestPause: 0,
+    userSpeakingTime: 0,
+    fillerWordsCount: 0,
+    wordsSpoken: 0,
+  });
+  const [messages, setMessages] = useState([]);
 
   // Timer state
   const [startTime, setStartTime] = useState(new Date());
@@ -146,6 +149,98 @@ const Interview = ({
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startTime]);
+
+  // Initialize interview session
+  useEffect(() => {
+    if (interviewId && !sessionId) {
+      initializeSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interviewId]);
+
+  const initializeSession = async () => {
+    try {
+      const response = await fetch('/api/interview-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          interviewId,
+          action: 'start',
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.session) {
+        setSessionId(data.session.id);
+      }
+    } catch (error) {
+      console.error('Error initializing session:', error);
+    }
+  };
+
+  const saveMessageToSession = async (messageData: any) => {
+    if (!sessionId) return;
+
+    try {
+      await fetch('/api/interview-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          interviewId,
+          action: 'add_message',
+          messageData,
+        }),
+      });
+    } catch (error) {
+      console.error('Error saving message:', error);
+    }
+  };
+
+  const updateSessionMetrics = async (metrics: any) => {
+    if (!sessionId) return;
+
+    try {
+      await fetch('/api/interview-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          interviewId,
+          action: 'update_metrics',
+          metricsData: metrics,
+        }),
+      });
+    } catch (error) {
+      console.error('Error updating metrics:', error);
+    }
+  };
+
+  // Analyze speech for filler words
+  const analyzeFillerWords = (text: string): number => {
+    const fillerWords = ['um', 'uh', 'like', 'you know', 'actually', 'basically', 'literally'];
+    let count = 0;
+    const words = text.toLowerCase().split(/\s+/);
+    
+    words.forEach(word => {
+      if (fillerWords.includes(word.replace(/[^a-z]/g, ''))) {
+        count++;
+      }
+    });
+    
+    return count;
+  };
+
+  // Calculate words per minute
+  const calculateWPM = (text: string, durationMs: number): number => {
+    const words = text.split(/\s+/).length;
+    const minutes = durationMs / 60000;
+    return minutes > 0 ? Math.round(words / minutes) : 0;
+  };
 
   // Auto-scroll chat
   useEffect(() => {
@@ -194,6 +289,76 @@ const Interview = ({
         console.log('>>>>> Stream ready:', event.detail);
         setLoading(false);
         setStartTime(new Date());
+        
+        // Generate and speak AI welcome message
+        setTimeout(async () => {
+          try {
+            console.log('Generating AI welcome message...');
+            
+            const response = await fetch('/api/ai-chat', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: 'START_INTERVIEW',
+                conversationHistory: [],
+                knowledgeBase,
+                interviewContext: {
+                  role,
+                  candidateBackground: 'New candidate joining the interview',
+                  duration: '3 minutes',
+                },
+              }),
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+              const welcomeMessage = data.response;
+              console.log('AI welcome message:', welcomeMessage);
+              speakMessage(welcomeMessage);
+              
+              // Add welcome message to chat
+              const welcomeMsg = {
+                id: 'welcome-1',
+                sender: 'interviewer' as const,
+                text: welcomeMessage,
+                timestamp: new Date(),
+              };
+              setMessages(prev => [welcomeMsg]);
+              saveMessageToSession(welcomeMsg);
+            } else {
+              // Fallback welcome message
+              const fallbackWelcome = "Hello! Welcome to your mock interview. I'm excited to speak with you today.";
+              speakMessage(fallbackWelcome);
+              
+              const welcomeMsg = {
+                id: 'welcome-1',
+                sender: 'interviewer' as const,
+                text: fallbackWelcome,
+                timestamp: new Date(),
+              };
+              setMessages(prev => [welcomeMsg]);
+              saveMessageToSession(welcomeMsg);
+            }
+          } catch (error) {
+            console.error('Error generating welcome message:', error);
+            
+            // Fallback welcome message
+            const fallbackWelcome = "Hello! Welcome to your mock interview. I'm excited to speak with you today.";
+            speakMessage(fallbackWelcome);
+            
+            const welcomeMsg = {
+              id: 'welcome-1',
+              sender: 'interviewer' as const,
+              text: fallbackWelcome,
+              timestamp: new Date(),
+            };
+            setMessages(prev => [welcomeMsg]);
+            saveMessageToSession(welcomeMsg);
+          }
+        }, 3000); // Wait 3 seconds after stream is ready
       });
       avatar.on(StreamingEvents.USER_START, (event) => {
         console.log('>>>>> User started talking:', event);
@@ -244,6 +409,129 @@ const Interview = ({
   }, [mediaStream, stream]);
 
   // Function to get mentor name by ID
+  // Handle real-time user speech messages
+  const handleUserSpeechMessage = (detail: any) => {
+    console.log('User speech message:', detail);
+    // You can use this for real-time transcription display if needed
+  };
+
+  // Handle complete user message and generate AI response
+  const handleUserMessageComplete = async (detail: any) => {
+    console.log('User message complete:', detail);
+    
+    if (!detail.message || detail.message.trim() === '') {
+      return;
+    }
+
+    const currentTime = Date.now();
+    const pauseBefore = pauseStartTime ? currentTime - pauseStartTime : 0;
+    
+    // Analyze message for metrics
+    const fillerCount = analyzeFillerWords(detail.message);
+    const wordCount = detail.message.split(/\s+/).length;
+    
+    const newUserMessage = {
+      id: (messages.length + 1).toString(),
+      sender: 'user' as const,
+      text: detail.message,
+      timestamp: new Date(),
+      pauseBefore,
+      duration: speechStartTime ? currentTime - speechStartTime : 0,
+    };
+    
+    // Update messages with user message
+    const updatedMessages = [...messages, newUserMessage];
+    setMessages(updatedMessages);
+    
+    // Update conversation metrics
+    setConversationMetrics(prev => ({
+      ...prev,
+      fillerWordsCount: prev.fillerWordsCount + fillerCount,
+      wordsSpoken: prev.wordsSpoken + wordCount,
+      totalPauses: pauseBefore > 1000 ? prev.totalPauses + 1 : prev.totalPauses,
+      totalPauseTime: prev.totalPauseTime + (pauseBefore > 1000 ? pauseBefore : 0),
+      longestPause: Math.max(prev.longestPause, pauseBefore),
+      userSpeakingTime: prev.userSpeakingTime + (speechStartTime ? currentTime - speechStartTime : 0),
+    }));
+    
+    // Save user message to session
+    saveMessageToSession({
+      ...newUserMessage,
+      confidence: Math.random() * 0.3 + 0.7,
+      emotion: 'neutral',
+    });
+    
+    // Generate AI response
+    try {
+      const response = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: detail.message,
+          conversationHistory: updatedMessages,
+          knowledgeBase,
+          interviewContext: {
+            role,
+            candidateBackground: 'Based on interview responses',
+            duration: '3 minutes',
+          },
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        const aiResponse = data.response;
+        
+        const interviewerMessage = {
+          id: (updatedMessages.length + 1).toString(),
+          sender: 'interviewer' as const,
+          text: aiResponse,
+          timestamp: new Date(),
+        };
+        
+        // Update messages with AI response
+        setMessages(prev => [...prev, interviewerMessage]);
+        
+        // Save interviewer message
+        saveMessageToSession(interviewerMessage);
+
+        // Make the avatar speak the AI response
+        setTimeout(() => {
+          try {
+            console.log('Speaking AI response:', aiResponse);
+            speakMessage(aiResponse);
+          } catch (error) {
+            console.error('Error making avatar speak AI response:', error);
+          }
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+      
+      // Fallback to a generic response
+      const fallbackResponse = "I see. Can you tell me more about that?";
+      const interviewerMessage = {
+        id: (updatedMessages.length + 1).toString(),
+        sender: 'interviewer' as const,
+        text: fallbackResponse,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, interviewerMessage]);
+      saveMessageToSession(interviewerMessage);
+      
+      setTimeout(() => {
+        speakMessage(fallbackResponse);
+      }, 1000);
+    }
+    
+    setPauseStartTime(currentTime);
+    setSpeechStartTime(null);
+  };
+
   const getMentorName = (id: string) => {
     const mentor = mentors.find(
       (mentor) => mentor.id === id || mentor.id.trim() === id.trim()
@@ -265,37 +553,48 @@ const Interview = ({
 
   const sendMessage = () => {
     if (message.trim()) {
+      const currentTime = Date.now();
+      const pauseBefore = pauseStartTime ? currentTime - pauseStartTime : 0;
+      
+      // Analyze message for metrics
+      const fillerCount = analyzeFillerWords(message);
+      const wordCount = message.split(/\s+/).length;
+      
       const newMessage = {
-        id: messages.length + 1,
-        sender: 'user',
+        id: (messages.length + 1).toString(),
+        sender: 'user' as const,
         text: message,
         timestamp: new Date(),
+        pauseBefore,
+        duration: speechStartTime ? currentTime - speechStartTime : 0,
       };
+      
       setMessages([...messages, newMessage]);
+      
+      // Update conversation metrics
+      setConversationMetrics(prev => ({
+        ...prev,
+        fillerWordsCount: prev.fillerWordsCount + fillerCount,
+        wordsSpoken: prev.wordsSpoken + wordCount,
+        totalPauses: pauseBefore > 1000 ? prev.totalPauses + 1 : prev.totalPauses,
+        totalPauseTime: prev.totalPauseTime + (pauseBefore > 1000 ? pauseBefore : 0),
+        longestPause: Math.max(prev.longestPause, pauseBefore),
+        userSpeakingTime: prev.userSpeakingTime + (speechStartTime ? currentTime - speechStartTime : 0),
+      }));
+      
+      // Save message to session
+      saveMessageToSession({
+        ...newMessage,
+        confidence: Math.random() * 0.3 + 0.7, // Simulated confidence score
+        emotion: 'neutral',
+      });
+      
       setMessage('');
+      setPauseStartTime(currentTime);
+      setSpeechStartTime(null);
 
-      // Simulate interviewer response
-      setTimeout(() => {
-        const responses = [
-          "That's a great point. Can you elaborate on that?",
-          'Interesting perspective. How would you handle a challenging situation?',
-          'Thank you for sharing. What would you say is your greatest strength?',
-          'I appreciate your honesty. Can you give me a specific example?',
-          "That's valuable experience. How do you see yourself growing in this role?",
-        ];
-        const randomResponse =
-          responses[Math.floor(Math.random() * responses.length)];
-
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          {
-            id: prevMessages.length + 1,
-            sender: 'interviewer',
-            text: randomResponse,
-            timestamp: new Date(),
-          },
-        ]);
-      }, 1500);
+      // Note: AI responses are now handled through voice chat events
+      // The handleUserMessageComplete function processes voice input and generates AI responses
     }
   };
 
@@ -308,6 +607,56 @@ const Interview = ({
 
   const exitInterview = async () => {
     setExitLoading(true);
+
+    // Calculate final metrics
+    const totalDuration = Date.now() - startTime.getTime();
+    const averagePauseLength = conversationMetrics.totalPauses > 0 
+      ? conversationMetrics.totalPauseTime / conversationMetrics.totalPauses 
+      : 0;
+    const wordsPerMinute = calculateWPM(
+      messages.filter(m => m.sender === 'user').map(m => m.text).join(' '),
+      conversationMetrics.userSpeakingTime
+    );
+    
+    const finalMetrics = {
+      totalDuration,
+      userSpeakingTime: conversationMetrics.userSpeakingTime,
+      interviewerSpeakingTime: totalDuration - conversationMetrics.userSpeakingTime,
+      totalPauses: conversationMetrics.totalPauses,
+      averagePauseLength,
+      longestPause: conversationMetrics.longestPause,
+      averageResponseTime: averagePauseLength,
+      wordsPerMinute,
+      interruptionCount: 0, // Could be calculated from overlap detection
+      fillerWordsCount: conversationMetrics.fillerWordsCount,
+      confidenceScore: Math.max(0.3, 1 - (conversationMetrics.fillerWordsCount / Math.max(1, conversationMetrics.wordsSpoken))),
+      emotionalTone: {
+        positive: 0.6,
+        neutral: 0.3,
+        negative: 0.1,
+        confident: 0.7,
+        nervous: 0.3,
+      },
+    };
+
+    // End session and update metrics
+    if (sessionId) {
+      try {
+        await fetch('/api/interview-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            interviewId,
+            action: 'end',
+            metricsData: finalMetrics,
+          }),
+        });
+      } catch (error) {
+        console.error('Error ending session:', error);
+      }
+    }
 
     // Stop all media tracks (camera/microphone)
     if (videoRef.current && videoRef.current.srcObject) {
@@ -322,7 +671,7 @@ const Interview = ({
 
   // Show InterviewComplete component if interview is complete
   if (isInterviewComplete) {
-    return <InterviewComplete />;
+    return <InterviewComplete interviewId={interviewId} sessionId={sessionId} />;
   }
 
   return (
@@ -481,8 +830,18 @@ const Interview = ({
                   <Input
                     placeholder="Type your message..."
                     value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    onChange={(e) => {
+                      setMessage(e.target.value);
+                      if (!speechStartTime && e.target.value.length === 1) {
+                        setSpeechStartTime(Date.now());
+                      }
+                    }}
                     onKeyPress={handleKeyPress}
+                    onFocus={() => {
+                      if (!speechStartTime) {
+                        setSpeechStartTime(Date.now());
+                      }
+                    }}
                     className="flex-1"
                   />
                   <Button onClick={sendMessage} size="sm">

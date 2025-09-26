@@ -9,6 +9,10 @@ export interface IInterview extends mongoose.Document {
   mentorId?: string;
   status: 'scheduled' | 'in-progress' | 'completed';
   startDateTime?: Date;
+  endDateTime?: Date;
+  sessionId?: string;
+  reportId?: string;
+  reportGenerated: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +48,19 @@ const InterviewSchema = new mongoose.Schema(
     },
     startDateTime: {
       type: Date,
+    },
+    endDateTime: {
+      type: Date,
+    },
+    sessionId: {
+      type: String,
+    },
+    reportId: {
+      type: String,
+    },
+    reportGenerated: {
+      type: Boolean,
+      default: false,
     },
   },
   {

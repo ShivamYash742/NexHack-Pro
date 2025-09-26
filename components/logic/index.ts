@@ -1,5 +1,6 @@
 export { useStreamingAvatarSession } from "./useStreamingAvatarSession";
 export { useVoiceChat } from "./useVoiceChat";
+export { useTextChat } from "./useTextChat";
 export { useConnectionQuality } from "./useConnectionQuality";
 export { useMessageHistory } from "./useMessageHistory";
 export { useInterrupt } from "./useInterrupt";
