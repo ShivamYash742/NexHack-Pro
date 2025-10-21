@@ -170,14 +170,7 @@ const InterviewReport: React.FC<InterviewReportProps> = ({ interviewId, onBack }
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF
-            </Button>
-            <Button variant="outline" size="sm">
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
+
           </div>
         </div>
 
