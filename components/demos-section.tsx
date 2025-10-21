@@ -28,8 +28,8 @@ export const demos = [
     name: 'Sai',
   },
   {
-    image: '/demos/vivek.png',
-    name: 'Vivek',
+    image: '/demos/Shivam.png',
+    name: 'Shivam Mishra',
   },
 ];
 
