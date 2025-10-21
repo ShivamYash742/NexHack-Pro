@@ -68,4 +68,7 @@ const InterviewSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.models.Interview || mongoose.model<IInterview>('Interview', InterviewSchema);
+const InterviewModel = (mongoose.models.Interview as mongoose.Model<IInterview>) ||
+  mongoose.model<IInterview>('Interview', InterviewSchema);
+
+export default InterviewModel;

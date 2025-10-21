@@ -1,11 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// @ts-nocheck
+
+
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
 import dbConnect from '@/lib/mongodb';
-import InterviewSession from '@/lib/models/InterviewSession';
+import InterviewSession, { IInterviewMetrics } from '@/lib/models/InterviewSession';
 import InterviewReport from '@/lib/models/InterviewReport';
 import Interview from '@/lib/models/Interview';
 import { mentors } from '@/components/mentors';
@@ -72,7 +72,7 @@ async function analyzeVideoEmotions(videoUrl: string) {
 }
 
 // Enhanced function to generate synthetic video insights when video analysis isn't available
-function generateSyntheticVideoInsights(metrics: any) {
+function generateSyntheticVideoInsights(metrics: { confidenceScore: number; fillerWordsCount: number; averageResponseTime: number }) {
   return {
     emotionAnalysis: {
       dominantEmotions: [
@@ -263,8 +263,8 @@ Reference industry standards for ${jobTitle} roles and compare against top-tier 
 
 // Helper function to analyze conversation with AI (enhanced with video insights)
 async function analyzeConversationWithAI(
-  messages: any[],
-  metrics: any,
+  messages: Array<{ sender: string; text: string }>,
+  metrics: IInterviewMetrics,
   jobTitle: string,
   userSummary: string,
   jobSummary: string,
@@ -273,7 +273,11 @@ async function analyzeConversationWithAI(
   // Analyze video emotions if video URL is provided
   const videoInsights = videoUrl ? 
     await analyzeVideoEmotions(videoUrl) : 
-    generateSyntheticVideoInsights(metrics);
+    generateSyntheticVideoInsights({
+      confidenceScore: Number(metrics.confidenceScore ?? 0.5),
+      fillerWordsCount: Number(metrics.fillerWordsCount ?? 0),
+      averageResponseTime: Number(metrics.averageResponseTime ?? 3000)
+    });
   const conversationText = messages
     .map(msg => `${msg.sender}: ${msg.text}`)
     .join('\n');
@@ -290,13 +294,13 @@ You are a world-class executive interview coach and industrial psychologist with
 ${conversationText}
 
 **BEHAVIORAL METRICS:**
-- Interview Duration: ${Math.round(metrics.totalDuration / 1000 / 60)} minutes
-- Speaking Time: ${Math.round(metrics.userSpeakingTime / 1000)} seconds (${Math.round((metrics.userSpeakingTime / metrics.totalDuration) * 100)}% of total)
-- Pause Analysis: ${metrics.totalPauses} pauses, avg ${metrics.averagePauseLength}ms, longest ${metrics.longestPause}ms
-- Response Latency: ${metrics.averageResponseTime}ms average
-- Speech Rate: ${metrics.wordsPerMinute} WPM
-- Fluency: ${metrics.fillerWordsCount} filler words detected
-- Confidence Index: ${Math.round(metrics.confidenceScore * 100)}%
+- Interview Duration: ${Math.round(Number(metrics.totalDuration ?? 0) / 1000 / 60)} minutes
+- Speaking Time: ${Math.round(Number(metrics.userSpeakingTime ?? 0) / 1000)} seconds (${Math.round((Number(metrics.userSpeakingTime ?? 0) / Number(metrics.totalDuration ?? 1)) * 100)}% of total)
+- Pause Analysis: ${Number(metrics.totalPauses ?? 0)} pauses, avg ${Number(metrics.averagePauseLength ?? 0)}ms, longest ${Number(metrics.longestPause ?? 0)}ms
+- Response Latency: ${Number(metrics.averageResponseTime ?? 0)}ms average
+- Speech Rate: ${Number(metrics.wordsPerMinute ?? 0)} WPM
+- Fluency: ${Number(metrics.fillerWordsCount ?? 0)} filler words detected
+- Confidence Index: ${Math.round(Number(metrics.confidenceScore ?? 0) * 100)}%
 
 **VIDEO EMOTION ANALYSIS:**
 ${videoInsights ? `
@@ -487,15 +491,15 @@ IMPORTANT: Return ONLY valid JSON, no additional text or formatting.`;
     
     // Generate a more dynamic fallback based on actual metrics with STRICT scoring
     const avgScore = Math.round(
-      (metrics.confidenceScore * 60 + // Much lower multiplier
-       (metrics.fillerWordsCount < 3 ? 65 : 35) + // Stricter filler word penalty
-       (metrics.averageResponseTime < 2000 ? 60 : 40)) / 3 // Stricter response time requirements
+      (Number(metrics.confidenceScore ?? 0) * 60 + // Much lower multiplier
+       (Number(metrics.fillerWordsCount ?? 0) < 3 ? 65 : 35) + // Stricter filler word penalty
+       (Number(metrics.averageResponseTime ?? 0) < 2000 ? 60 : 40)) / 3 // Stricter response time requirements
     );
 
     return {
       performanceAnalysis: {
         communicationSkills: {
-          score: metrics.fillerWordsCount < 3 ? 55 : 35, // Much stricter scoring
+          score: Number(metrics.fillerWordsCount ?? 0) < 3 ? 55 : 35, // Much stricter scoring
           strengths: metrics.fillerWordsCount < 3 ? 
             ['Minimal hesitation in speech', 'Basic professional language'] : 
             ['Understandable communication', 'Shows effort to communicate'],
@@ -638,8 +642,8 @@ export async function POST(req: NextRequest) {
 
     // Get interview and session data
     const [interview, session] = await Promise.all([
-      Interview.findById(interviewId).exec(),
-      InterviewSession.findById(sessionId).exec()
+      Interview.findById(interviewId),
+      InterviewSession.findById(sessionId)
     ]);
 
     if (!interview || !session) {
@@ -655,7 +659,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if report already exists
-    const existingReport = await (InterviewReport.findOne({ interviewId }) as any).exec();
+    const existingReport = await InterviewReport.findOne({ interviewId });
     if (existingReport) {
       return NextResponse.json({
         success: true,
@@ -671,11 +675,11 @@ export async function POST(req: NextRequest) {
     // Generate AI analysis with video insights
     const aiAnalysis = await analyzeConversationWithAI(
       session.messages,
-      session.metrics,
+      session.metrics as IInterviewMetrics,
       interview.jobTitle,
       interview.userSummary,
       interview.jobSummary,
-      session.videoUrl // Pass video URL if available
+      (session as unknown as { videoUrl?: string }).videoUrl // Pass video URL if available
     );
 
     // Create detailed feedback with AI analysis for each question
@@ -792,13 +796,13 @@ export async function POST(req: NextRequest) {
 
     // Update interview and session
     await Promise.all([
-      (Interview.findByIdAndUpdate(interviewId, {
+      Interview.findByIdAndUpdate(interviewId, {
         reportId: report._id,
         reportGenerated: true,
-      }) as any).exec(),
-      (InterviewSession.findByIdAndUpdate(sessionId, {
+      }),
+      InterviewSession.findByIdAndUpdate(sessionId, {
         reportGenerated: true,
-      }) as any).exec()
+      })
     ]);
 
     return NextResponse.json({
@@ -839,9 +843,9 @@ export async function GET(req: NextRequest) {
 
     let report;
     if (reportId) {
-      report = await (InterviewReport.findById(reportId) as any).exec();
+      report = await InterviewReport.findById(reportId);
     } else {
-      report = await (InterviewReport.findOne({ interviewId }) as any).exec();
+      report = await InterviewReport.findOne({ interviewId });
     }
 
     if (!report) {

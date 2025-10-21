@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -90,7 +90,7 @@ const Interview = ({
   role: string;
   mentorId: string;
 }) => {
-  const { initAvatar, startAvatar, stopAvatar, sessionState, stream, avatarRef } =
+  const { initAvatar, startAvatar, stopAvatar, sessionState, stream } =
     useStreamingAvatarSession();
   const { startVoiceChat } = useVoiceChat();
   const { sendMessage: speakMessage } = useTextChat();
@@ -111,7 +111,7 @@ const Interview = ({
   const [message, setMessage] = useState('');
   const [isInterviewComplete, setIsInterviewComplete] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [lastSpeechTime, setLastSpeechTime] = useState<number>(Date.now());
+
   const [speechStartTime, setSpeechStartTime] = useState<number | null>(null);
   const [pauseStartTime, setPauseStartTime] = useState<number | null>(null);
   const [conversationMetrics, setConversationMetrics] = useState({
@@ -128,8 +128,8 @@ const Interview = ({
   const [startTime, setStartTime] = useState(new Date());
   const [remainingTime, setRemainingTime] = useState(180); // 3 minutes in seconds
 
-  const videoRef = useRef<any>(null);
-  const chatScrollRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Timer effect - countdown from 3 minutes
   useEffect(() => {
@@ -180,7 +180,7 @@ const Interview = ({
     }
   };
 
-  const saveMessageToSession = async (messageData: any) => {
+  const saveMessageToSession = async (messageData: Record<string, unknown>) => {
     if (!sessionId) return;
 
     try {
@@ -200,25 +200,6 @@ const Interview = ({
     }
   };
 
-  const updateSessionMetrics = async (metrics: any) => {
-    if (!sessionId) return;
-
-    try {
-      await fetch('/api/interview-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          interviewId,
-          action: 'update_metrics',
-          metricsData: metrics,
-        }),
-      });
-    } catch (error) {
-      console.error('Error updating metrics:', error);
-    }
-  };
 
   // Analyze speech for filler words
   const analyzeFillerWords = (text: string): number => {
@@ -259,8 +240,9 @@ const Interview = ({
         })
         .catch((err) => console.log('Error accessing media devices:', err));
     } else if (!isCameraOn && videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach((track: any) => track.stop());
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      tracks.forEach((track: MediaStreamTrack) => track.stop());
       videoRef.current.srcObject = null;
     }
   }, [isCameraOn, isMicOn]);
@@ -326,7 +308,7 @@ const Interview = ({
                 text: welcomeMessage,
                 timestamp: new Date(),
               };
-              setMessages(prev => [welcomeMsg]);
+              setMessages([welcomeMsg]);
               saveMessageToSession(welcomeMsg);
             } else {
               // Fallback welcome message
@@ -339,7 +321,7 @@ const Interview = ({
                 text: fallbackWelcome,
                 timestamp: new Date(),
               };
-              setMessages(prev => [welcomeMsg]);
+              setMessages([welcomeMsg]);
               saveMessageToSession(welcomeMsg);
             }
           } catch (error) {
@@ -355,7 +337,7 @@ const Interview = ({
               text: fallbackWelcome,
               timestamp: new Date(),
             };
-            setMessages(prev => [welcomeMsg]);
+              setMessages([welcomeMsg]);
             saveMessageToSession(welcomeMsg);
           }
         }, 3000); // Wait 3 seconds after stream is ready
@@ -392,8 +374,9 @@ const Interview = ({
   useUnmount(() => {
     // Stop all media tracks (camera/microphone)
     if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach((track: any) => track.stop());
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      tracks.forEach((track: MediaStreamTrack) => track.stop());
       videoRef.current.srcObject = null;
     }
     stopAvatar();
@@ -410,127 +393,7 @@ const Interview = ({
 
   // Function to get mentor name by ID
   // Handle real-time user speech messages
-  const handleUserSpeechMessage = (detail: any) => {
-    console.log('User speech message:', detail);
-    // You can use this for real-time transcription display if needed
-  };
-
   // Handle complete user message and generate AI response
-  const handleUserMessageComplete = async (detail: any) => {
-    console.log('User message complete:', detail);
-    
-    if (!detail.message || detail.message.trim() === '') {
-      return;
-    }
-
-    const currentTime = Date.now();
-    const pauseBefore = pauseStartTime ? currentTime - pauseStartTime : 0;
-    
-    // Analyze message for metrics
-    const fillerCount = analyzeFillerWords(detail.message);
-    const wordCount = detail.message.split(/\s+/).length;
-    
-    const newUserMessage = {
-      id: (messages.length + 1).toString(),
-      sender: 'user' as const,
-      text: detail.message,
-      timestamp: new Date(),
-      pauseBefore,
-      duration: speechStartTime ? currentTime - speechStartTime : 0,
-    };
-    
-    // Update messages with user message
-    const updatedMessages = [...messages, newUserMessage];
-    setMessages(updatedMessages);
-    
-    // Update conversation metrics
-    setConversationMetrics(prev => ({
-      ...prev,
-      fillerWordsCount: prev.fillerWordsCount + fillerCount,
-      wordsSpoken: prev.wordsSpoken + wordCount,
-      totalPauses: pauseBefore > 1000 ? prev.totalPauses + 1 : prev.totalPauses,
-      totalPauseTime: prev.totalPauseTime + (pauseBefore > 1000 ? pauseBefore : 0),
-      longestPause: Math.max(prev.longestPause, pauseBefore),
-      userSpeakingTime: prev.userSpeakingTime + (speechStartTime ? currentTime - speechStartTime : 0),
-    }));
-    
-    // Save user message to session
-    saveMessageToSession({
-      ...newUserMessage,
-      confidence: Math.random() * 0.3 + 0.7,
-      emotion: 'neutral',
-    });
-    
-    // Generate AI response
-    try {
-      const response = await fetch('/api/ai-chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: detail.message,
-          conversationHistory: updatedMessages,
-          knowledgeBase,
-          interviewContext: {
-            role,
-            candidateBackground: 'Based on interview responses',
-            duration: '3 minutes',
-          },
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        const aiResponse = data.response;
-        
-        const interviewerMessage = {
-          id: (updatedMessages.length + 1).toString(),
-          sender: 'interviewer' as const,
-          text: aiResponse,
-          timestamp: new Date(),
-        };
-        
-        // Update messages with AI response
-        setMessages(prev => [...prev, interviewerMessage]);
-        
-        // Save interviewer message
-        saveMessageToSession(interviewerMessage);
-
-        // Make the avatar speak the AI response
-        setTimeout(() => {
-          try {
-            console.log('Speaking AI response:', aiResponse);
-            speakMessage(aiResponse);
-          } catch (error) {
-            console.error('Error making avatar speak AI response:', error);
-          }
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('Error getting AI response:', error);
-      
-      // Fallback to a generic response
-      const fallbackResponse = "I see. Can you tell me more about that?";
-      const interviewerMessage = {
-        id: (updatedMessages.length + 1).toString(),
-        sender: 'interviewer' as const,
-        text: fallbackResponse,
-        timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, interviewerMessage]);
-      saveMessageToSession(interviewerMessage);
-      
-      setTimeout(() => {
-        speakMessage(fallbackResponse);
-      }, 1000);
-    }
-    
-    setPauseStartTime(currentTime);
-    setSpeechStartTime(null);
-  };
 
   const getMentorName = (id: string) => {
     const mentor = mentors.find(
@@ -543,7 +406,7 @@ const Interview = ({
 
   //
 
-  const formatTime = (seconds: any) => {
+  const formatTime = (seconds: number) => {
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${secs
@@ -660,8 +523,9 @@ const Interview = ({
 
     // Stop all media tracks (camera/microphone)
     if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach((track: any) => track.stop());
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      tracks.forEach((track: MediaStreamTrack) => track.stop());
       videoRef.current.srcObject = null;
     }
 

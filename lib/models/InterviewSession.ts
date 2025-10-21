@@ -121,5 +121,7 @@ InterviewSessionSchema.index({ interviewId: 1 });
 InterviewSessionSchema.index({ userId: 1 });
 InterviewSessionSchema.index({ status: 1 });
 
-export default mongoose.models.InterviewSession || 
+const InterviewSessionModel = (mongoose.models.InterviewSession as mongoose.Model<IInterviewSession>) ||
   mongoose.model<IInterviewSession>('InterviewSession', InterviewSessionSchema);
+
+export default InterviewSessionModel;

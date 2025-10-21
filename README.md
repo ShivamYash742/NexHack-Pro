@@ -1,6 +1,6 @@
 # 🎯 MockMentor - AI-Powered Interview Practice Platform
 
-### Built at [SpurHacks 2025](https://spurhacks.com/) by [Vivek Thakur](https://vivekthakur.dev)
+### Built at [SpurHacks 2025](https://spurhacks.com/) by Team Algorhythm
 
 ![MockMentor Cover](public/mockmentor.gif)
 
@@ -30,7 +30,7 @@ MockMentor revolutionizes interview preparation by providing personalized, real-
 
 ## 🎨 Screenshots
 
-![MockMentor Cover](public/demos/vivek.png)
+![MockMentor Cover](public/demos/team-algorhythm.png)
 
 _Real-time interview session with AI mentor_
 
@@ -39,7 +39,7 @@ _Real-time interview session with AI mentor_
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/vivekvt/mockmentor.git
+git clone https://github.com/team-algorhythm/mockmentor.git
 cd mockmentor
 ```
 
@@ -90,8 +90,8 @@ npm run dev
 
 **Ready to ace your next interview?** [Try MockMentor Now →](https://mockmentor.co)
 
-**Connect with the creator:**
+**Connect with Team Algorhythm:**
 
-- 🐦 [X (Twitter)](https://x.com/vivekvt_)
-- 💼 [LinkedIn](https://linkedin.com/in/vivekvt)
-- 📧 [Email](mailto:contact@vivekthakur.dev)
+- 🐦 [X (Twitter)](https://x.com/teamalgorhythm)
+- 💼 [LinkedIn](https://linkedin.com/company/team-algorhythm)
+- 📧 [Email](mailto:contact@teamalgorhythm.com)

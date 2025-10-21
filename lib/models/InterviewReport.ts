@@ -182,5 +182,7 @@ InterviewReportSchema.index({ interviewId: 1 });
 InterviewReportSchema.index({ userId: 1 });
 InterviewReportSchema.index({ generatedAt: -1 });
 
-export default mongoose.models.InterviewReport || 
+const InterviewReportModel = (mongoose.models.InterviewReport as mongoose.Model<IInterviewReport>) ||
   mongoose.model<IInterviewReport>('InterviewReport', InterviewReportSchema);
+
+export default InterviewReportModel;

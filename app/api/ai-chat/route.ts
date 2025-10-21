@@ -52,7 +52,7 @@ Candidate Background: ${interviewContext.candidateBackground}
 Interview Duration: ${interviewContext.duration || '3 minutes'}` : ''}
 
 CONVERSATION HISTORY:
-${conversationHistory?.map((msg: any) => `${msg.sender}: ${msg.text}`).join('\n') || 'No previous conversation'}
+${conversationHistory?.map((msg: { sender: string; text: string }) => `${msg.sender}: ${msg.text}`).join('\n') || 'No previous conversation'}
 
 CURRENT USER MESSAGE: ${message}
 
@@ -76,11 +76,11 @@ Respond ONLY with your interviewer response, no additional formatting or labels.
       response: result.text.trim(),
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error generating AI response:', error);
     
     // Check if it's a rate limit error
-    if (error?.message?.includes('rate_limit') || error?.message?.includes('429')) {
+    if ((error as Error)?.message?.includes('rate_limit') || (error as Error)?.message?.includes('429')) {
       console.log('Rate limit hit, using fallback response');
     }
     
@@ -99,7 +99,7 @@ Respond ONLY with your interviewer response, no additional formatting or labels.
       success: true,
       response: fallbackResponse,
       fallback: true,
-      error: error?.message?.includes('rate_limit') ? 'rate_limit' : 'ai_error',
+      error: (error as Error)?.message?.includes('rate_limit') ? 'rate_limit' : 'ai_error',
     });
   }
 }

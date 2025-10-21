@@ -1,19 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   TrendingUp,
-  TrendingDown,
   Clock,
-  MessageSquare,
   Brain,
   Target,
   Award,
   AlertCircle,
   CheckCircle,
   ArrowRight,
-  Download,
-  Share2,
   BarChart3,
   User,
   Calendar,
@@ -23,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import Link from 'next/link';
 
 interface InterviewReportProps {
@@ -91,11 +87,7 @@ const InterviewReport: React.FC<InterviewReportProps> = ({ interviewId, onBack }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchReport();
-  }, [interviewId]);
-
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/generate-report?interviewId=${interviewId}`);
@@ -112,13 +104,13 @@ const InterviewReport: React.FC<InterviewReportProps> = ({ interviewId, onBack }
     } finally {
       setLoading(false);
     }
-  };
+  }, [interviewId]);
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
+
+
 
   const getScoreBadgeVariant = (score: number) => {
     if (score >= 80) return 'default';

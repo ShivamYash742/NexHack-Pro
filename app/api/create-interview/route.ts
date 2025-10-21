@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     await dbConnect();
 
     // Get user profile for resume summary
-    const userProfile = await UserProfile.findOne({ userId });
+    const userProfile = await UserProfile.findOne({ userId }).exec();
 
     if (!userProfile || !userProfile.resumeSummary) {
       return NextResponse.json(

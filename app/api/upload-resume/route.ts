@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     // Connect to database and save/update user profile
     await dbConnect();
 
-    const userProfile = await (UserProfile as any).findOneAndUpdate(
+    const userProfile = await UserProfile.findOneAndUpdate(
       { userId },
       {
         resumeUrl: fileUrl.toString(),
