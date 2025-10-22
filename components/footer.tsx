@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Twitter, Linkedin, Mail } from 'lucide-react';
+//import { Twitter, Linkedin, Mail } from 'lucide-react';
 
 const Footer = React.forwardRef<
   HTMLDivElement,
@@ -31,8 +31,8 @@ const Footer = React.forwardRef<
             </Link>
           </nav>
 
-          {/* Creator Credit & Social Links */}
-          <div className="flex flex-col items-center gap-3 md:flex-row md:gap-4">
+          {/* Creator Credit & Social Links - COMMENTED OUT */}
+          {/* <div className="flex flex-col items-center gap-3 md:flex-row md:gap-4">
             <div className="flex items-center gap-2 text-sm font-geist">
               <span className="text-gray-600 dark:text-gray-400">
                 Created by
@@ -50,7 +50,6 @@ const Footer = React.forwardRef<
               </a>
             </div>
 
-            {/* Social Media Links */}
             <div className="flex items-center gap-3">
               <a
                 href="https://x.com/shivamyash742"
@@ -78,7 +77,7 @@ const Footer = React.forwardRef<
                 <Mail size={18} />
               </a>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Bottom Border Line */}
