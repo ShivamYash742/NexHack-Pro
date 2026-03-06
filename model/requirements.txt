@@ -1,0 +1,8 @@
+opencv-python
+mediapipe==0.10.9
+numpy
+fastapi
+uvicorn
+groq
+python-dotenv
+websockets

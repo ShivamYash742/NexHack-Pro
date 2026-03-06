@@ -1,0 +1,14 @@
+{
+  "avg_ear": 0.4115079755581176,
+  "avg_blinks_per_min": 64.88054554230666,
+  "avg_mar": 0.022572740523293278,
+  "avg_eyebrow_dist": 0.09706330396757315,
+  "avg_shoulder_diff": 0.042248826779303,
+  "avg_nose_z": -0.7190831889871692,
+  "avg_head_tilt": 174.96840617192882,
+  "avg_movement_score": 0.0,
+  "avg_fidget_index": 0.0,
+  "avg_stress_score": 6.1706953877183865,
+  "total_data_points": 244,
+  "time_period": "2025-09-27T03:07:04.804010 to 2025-09-27T03:07:19.739411"
+}
