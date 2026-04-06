@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { groq } from '@ai-sdk/groq';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GEMINI_API_KEY || '',
+});
 import { generateText } from 'ai';
 
 export async function POST(req: NextRequest) {
@@ -29,7 +33,7 @@ Job Description: ${jobDescription}`
       : `Please provide a brief summary (2-3 sentences) of typical requirements and responsibilities for a ${jobTitle} position.`;
 
     const { text: jobSummary } = await generateText({
-      model: groq('llama-3.1-8b-instant'),
+      model: google('gemini-2.5-flash'),
       prompt: jobPrompt,
     });
 

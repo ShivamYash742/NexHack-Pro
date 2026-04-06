@@ -1,2 +1,2 @@
-export * from "./context";
-export * from "./useLiveAvatarSession";
+export * from "./VoiceInterviewContext";
+export * from "./useVoiceInterview";

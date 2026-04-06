@@ -1,18 +1,13 @@
 "use client";
 
-import React, { useRef, useState, useCallback, createContext, useContext } from "react";
-import type { LiveAvatarSession } from "@heygen/liveavatar-web-sdk";
+import React, { createContext, useContext, useState, useCallback } from "react";
 
-// ── Session state enum (mirrors SDK SessionState) ──
-export enum LiveAvatarSessionState {
+export enum VoiceSessionState {
   INACTIVE = "INACTIVE",
   CONNECTING = "CONNECTING",
   CONNECTED = "CONNECTED",
-  DISCONNECTING = "DISCONNECTING",
-  DISCONNECTED = "DISCONNECTED",
 }
 
-// ── Message types kept for chat panel compatibility ──
 export enum MessageSender {
   CLIENT = "CLIENT",
   AVATAR = "AVATAR",
@@ -24,62 +19,43 @@ export interface Message {
   content: string;
 }
 
-// ── Context shape ──
-interface LiveAvatarContextProps {
-  sessionRef: React.MutableRefObject<LiveAvatarSession | null>;
-
-  sessionState: LiveAvatarSessionState;
-  setSessionState: (s: LiveAvatarSessionState) => void;
-
+interface VoiceInterviewContextProps {
+  sessionState: VoiceSessionState;
+  setSessionState: (s: VoiceSessionState) => void;
   isUserTalking: boolean;
   setIsUserTalking: (v: boolean) => void;
   isAvatarTalking: boolean;
   setIsAvatarTalking: (v: boolean) => void;
-
   isMuted: boolean;
   setIsMuted: (v: boolean) => void;
-
   messages: Message[];
   addMessage: (sender: MessageSender, content: string) => void;
   clearMessages: () => void;
 }
 
-const LiveAvatarContext = createContext<LiveAvatarContextProps>({
-  sessionRef: { current: null },
-  sessionState: LiveAvatarSessionState.INACTIVE,
+const VoiceInterviewContext = createContext<VoiceInterviewContextProps>({
+  sessionState: VoiceSessionState.INACTIVE,
   setSessionState: () => {},
   isUserTalking: false,
   setIsUserTalking: () => {},
   isAvatarTalking: false,
   setIsAvatarTalking: () => {},
-  isMuted: true,
+  isMuted: false,
   setIsMuted: () => {},
   messages: [],
   addMessage: () => {},
   clearMessages: () => {},
 });
 
-// ── Provider ──
-export const LiveAvatarProvider = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
-  const sessionRef = useRef<LiveAvatarSession | null>(null);
-
-  const [sessionState, setSessionState] = useState<LiveAvatarSessionState>(
-    LiveAvatarSessionState.INACTIVE
-  );
+export const VoiceInterviewProvider = ({ children }: { children: React.ReactNode }) => {
+  const [sessionState, setSessionState] = useState(VoiceSessionState.INACTIVE);
   const [isUserTalking, setIsUserTalking] = useState(false);
   const [isAvatarTalking, setIsAvatarTalking] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
 
   const addMessage = useCallback((sender: MessageSender, content: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now().toString(), sender, content },
-    ]);
+    setMessages((prev) => [...prev, { id: Date.now().toString(), sender, content }]);
   }, []);
 
   const clearMessages = useCallback(() => {
@@ -87,9 +63,8 @@ export const LiveAvatarProvider = ({
   }, []);
 
   return (
-    <LiveAvatarContext.Provider
+    <VoiceInterviewContext.Provider
       value={{
-        sessionRef,
         sessionState,
         setSessionState,
         isUserTalking,
@@ -104,8 +79,8 @@ export const LiveAvatarProvider = ({
       }}
     >
       {children}
-    </LiveAvatarContext.Provider>
+    </VoiceInterviewContext.Provider>
   );
 };
 
-export const useLiveAvatarContext = () => useContext(LiveAvatarContext);
+export const useVoiceInterviewContext = () => useContext(VoiceInterviewContext);

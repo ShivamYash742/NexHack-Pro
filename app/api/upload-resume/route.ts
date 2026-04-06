@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { storage, BUCKET_ID } from '@/lib/appwrite';
 import { ID } from 'appwrite';
-import { groq } from '@ai-sdk/groq';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GEMINI_API_KEY || '',
+});
 import { generateText } from 'ai';
 import dbConnect from '@/lib/mongodb';
 import UserProfile from '@/lib/models/User';
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     // Generate resume summary using Groq
     const { text: resumeSummary } = await generateText({
-      model: groq('llama-3.1-8b-instant'),
+      model: google('gemini-2.5-flash'),
       prompt: `Please analyze this resume and provide a concise summary (2-3 sentences) highlighting the candidate's key skills, experience, and qualifications:\n\n${truncatedContent}`,
     });
 

@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { createGroq } from '@ai-sdk/groq';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
 import dbConnect from '@/lib/mongodb';
 import InterviewSession, { IInterviewMetrics } from '@/lib/models/InterviewSession';
@@ -10,8 +10,8 @@ import InterviewReport from '@/lib/models/InterviewReport';
 import Interview from '@/lib/models/Interview';
 import { mentors } from '@/components/mentors';
 
-const groq = createGroq({
-  apiKey: process.env.GROQ_API_KEY || '',
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GEMINI_API_KEY || '',
 });
 
 // Helper function to analyze video emotions using Imentiv AI
@@ -207,7 +207,7 @@ Reference industry standards for ${jobTitle} roles and compare against top-tier 
 
   try {
     const result = await generateText({
-      model: groq("llama-3.1-8b-instant"),
+      model: google("gemini-2.5-flash"),
       prompt,
       temperature: 0.4,
     });
@@ -471,7 +471,7 @@ ${prompt}
 IMPORTANT: Return ONLY valid JSON, no additional text or formatting.`;
 
     const result = await generateText({
-      model: groq("llama-3.1-8b-instant"),
+      model: google("gemini-2.5-flash"),
       prompt: fullPrompt,
       temperature: 0.3,
     });

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createGroq } from '@ai-sdk/groq';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
-const groq = createGroq({
-  apiKey: process.env.GROQ_API_KEY || '',
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GEMINI_API_KEY || '',
 });
 
 export async function POST(request: NextRequest) {
@@ -32,7 +32,7 @@ Generate a professional, warm welcome message to start the interview. Keep it:
 Respond ONLY with your welcome message, no additional formatting.`;
 
       const result = await generateText({
-        model: groq("llama-3.1-8b-instant"),
+        model: google("gemini-2.5-flash"),
         prompt: welcomePrompt,
         temperature: 0.7,
       });
@@ -66,7 +66,7 @@ Please respond as the AI interviewer. Keep your response:
 Respond ONLY with your interviewer response, no additional formatting or labels.`;
 
     const result = await generateText({
-      model: groq("llama-3.1-8b-instant"),
+      model: google("gemini-2.5-flash"),
       prompt: systemPrompt,
       temperature: 0.7,
     });

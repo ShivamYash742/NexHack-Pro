@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
-import { LiveAvatarProvider } from '@/components/logic';
+import { VoiceInterviewProvider } from '@/components/logic';
 import Interview from '@/components/interview';
 import LoadingSkeleton from '@/components/loading-skeleton';
 import InterviewComplete from '@/components/interview-complete';
@@ -197,14 +197,14 @@ export default function InterviewPage() {
   }
 
   return (
-    <LiveAvatarProvider>
+    <VoiceInterviewProvider>
       <Interview
         interviewId={interview._id}
         mentorId={interview.mentorId}
         role={interview.jobTitle}
         knowledgeBase={getKnowledgeBase(interview)}
       />
-    </LiveAvatarProvider>
+    </VoiceInterviewProvider>
   );
 }
 
