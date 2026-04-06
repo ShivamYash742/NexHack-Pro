@@ -12,7 +12,7 @@
     "@ai-sdk/groq": "^2.0.22",
     "@clerk/nextjs": "^6.22.0",
     "@google/generative-ai": "^0.24.1",
-    "@heygen/streaming-avatar": "^2.0.16",
+    "@heygen/liveavatar-web-sdk": "^0.0.12",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-progress": "^1.1.7",

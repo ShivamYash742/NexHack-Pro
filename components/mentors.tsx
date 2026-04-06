@@ -9,7 +9,7 @@ export const mentors = [
     name: 'Elenora',
   },
   {
-    id: 'Judy_Teacher_Sitting_public',
+    id: '6e32f90a-f566-45be-9ec7-a5f6999ee606',
     image: '/mentors/Judy_Teacher_Sitting_public.webp',
     name: 'Judy',
   },

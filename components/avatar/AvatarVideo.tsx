@@ -1,28 +1,19 @@
 import React, { forwardRef } from 'react';
-import { ConnectionQuality } from '@heygen/streaming-avatar';
-
-import { useConnectionQuality } from '../logic/useConnectionQuality';
-import { useStreamingAvatarSession } from '../logic/useStreamingAvatarSession';
-import { StreamingAvatarSessionState } from '../logic';
+import { useLiveAvatarSession } from '../logic';
+import { LiveAvatarSessionState } from '../logic';
 import { Button } from '../ui/button';
 import { Cross } from 'lucide-react';
 
-export const AvatarVideo = forwardRef<HTMLVideoElement>(({}, ref) => {
-  const { sessionState, stopAvatar } = useStreamingAvatarSession();
-  const { connectionQuality } = useConnectionQuality();
+export const AvatarVideo = forwardRef<HTMLVideoElement>((_, ref) => {
+  const { sessionState, stop } = useLiveAvatarSession();
 
-  const isLoaded = sessionState === StreamingAvatarSessionState.CONNECTED;
+  const isLoaded = sessionState === LiveAvatarSessionState.CONNECTED;
 
   return (
     <>
-      {connectionQuality !== ConnectionQuality.UNKNOWN && (
-        <div className="absolute top-3 left-3 bg-black text-white rounded-lg px-3 py-2">
-          Connection Quality: {connectionQuality}
-        </div>
-      )}
       {isLoaded && (
-        <Button onClick={stopAvatar}>
-          <Cross />
+        <Button onClick={stop} className="absolute top-4 right-4 z-10 w-fit h-fit p-2">
+          <Cross className="w-5 h-5" />
         </Button>
       )}
       <video
@@ -39,10 +30,11 @@ export const AvatarVideo = forwardRef<HTMLVideoElement>(({}, ref) => {
       </video>
       {!isLoaded && (
         <div className="w-full h-full flex items-center justify-center absolute top-0 left-0">
-          Loading...
+          Loading Avatar...
         </div>
       )}
     </>
   );
 });
+
 AvatarVideo.displayName = 'AvatarVideo';

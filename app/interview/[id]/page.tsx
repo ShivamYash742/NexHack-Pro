@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
-import { StreamingAvatarProvider } from '@/components/logic';
+import { LiveAvatarProvider } from '@/components/logic';
 import Interview from '@/components/interview';
 import LoadingSkeleton from '@/components/loading-skeleton';
 import InterviewComplete from '@/components/interview-complete';
@@ -197,14 +197,14 @@ export default function InterviewPage() {
   }
 
   return (
-    <StreamingAvatarProvider basePath={process.env.NEXT_PUBLIC_BASE_API_URL}>
+    <LiveAvatarProvider>
       <Interview
         interviewId={interview._id}
         mentorId={interview.mentorId}
         role={interview.jobTitle}
         knowledgeBase={getKnowledgeBase(interview)}
       />
-    </StreamingAvatarProvider>
+    </LiveAvatarProvider>
   );
 }
 

@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Camera,
   CameraOff,
@@ -20,20 +20,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from './ui/input';
 import { useMemoizedFn, useUnmount } from 'ahooks';
 import {
-  StreamingAvatarSessionState,
-  useStreamingAvatarSession,
-  useVoiceChat,
-  useTextChat,
+  LiveAvatarSessionState,
 } from './logic';
-import {
-  AvatarQuality,
-  ElevenLabsModel,
-  StartAvatarRequest,
-  StreamingEvents,
-  STTProvider,
-  VoiceChatTransport,
-  VoiceEmotion,
-} from '@heygen/streaming-avatar';
+import { useLiveAvatarSession } from './logic';
 import LoadingSkeleton from './loading-skeleton';
 import {
   AlertDialog,
@@ -49,36 +38,6 @@ import {
 import { mentors } from './mentors';
 import InterviewComplete from './interview-complete';
 
-async function fetchAccessToken() {
-  try {
-    const response = await fetch('/api/get-access-token', {
-      method: 'POST',
-    });
-    const token = await response.text();
-
-    return token;
-  } catch (error) {
-    console.error('Error fetching access token:', error);
-    throw error;
-  }
-}
-
-const DEFAULT_CONFIG: StartAvatarRequest = {
-  quality: AvatarQuality.High,
-  avatarName: 'Judy_Teacher_Sitting_public',
-  knowledgeId: undefined,
-  voice: {
-    rate: 2,
-    emotion: VoiceEmotion.EXCITED,
-    model: ElevenLabsModel.eleven_flash_v2_5,
-  },
-  language: 'en',
-  voiceChatTransport: VoiceChatTransport.WEBSOCKET,
-  sttSettings: {
-    provider: STTProvider.DEEPGRAM,
-  },
-};
-
 const Interview = ({
   interviewId,
   knowledgeBase,
@@ -90,16 +49,7 @@ const Interview = ({
   role: string;
   mentorId: string;
 }) => {
-  const { initAvatar, startAvatar, stopAvatar, sessionState, stream } =
-    useStreamingAvatarSession();
-  const { startVoiceChat } = useVoiceChat();
-  const { sendMessage: speakMessage } = useTextChat();
-
-  const [config] = useState<StartAvatarRequest>({
-    ...DEFAULT_CONFIG,
-    knowledgeBase,
-    avatarName: mentorId || DEFAULT_CONFIG?.avatarName,
-  });
+  const { sessionState, start, stop, attach, speakMessage } = useLiveAvatarSession();
 
   const mediaStream = useRef<HTMLVideoElement>(null);
 
@@ -122,7 +72,16 @@ const Interview = ({
     fillerWordsCount: 0,
     wordsSpoken: 0,
   });
-  const [messages, setMessages] = useState([]);
+  interface ChatMessage {
+    id: string;
+    sender: 'user' | 'interviewer';
+    text: string;
+    timestamp: Date;
+    pauseBefore?: number;
+    duration?: number;
+  }
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   // Timer state
   const [startTime, setStartTime] = useState(new Date());
@@ -180,7 +139,7 @@ const Interview = ({
     }
   };
 
-  const saveMessageToSession = async (messageData: Record<string, unknown>) => {
+  const saveMessageToSession = useCallback(async (messageData: Record<string, unknown>) => {
     if (!sessionId) return;
 
     try {
@@ -198,7 +157,7 @@ const Interview = ({
     } catch (error) {
       console.error('Error saving message:', error);
     }
-  };
+  }, [sessionId, interviewId]);
 
 
   // Analyze speech for filler words
@@ -248,30 +207,26 @@ const Interview = ({
   }, [isCameraOn, isMicOn]);
 
   useEffect(() => {
-    console.log('Session state changed:');
-    startSessionV2(true);
+    console.log('Session state changed:', sessionState);
+    if (sessionState === LiveAvatarSessionState.INACTIVE) {
+      startSessionV2();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startSessionV2 = useMemoizedFn(async (isVoiceChat: boolean) => {
-    try {
-      const newToken = await fetchAccessToken();
-      const avatar = initAvatar(newToken);
+  const hasWelcomed = useRef(false);
 
-      avatar.on(StreamingEvents.AVATAR_START_TALKING, (e) => {
-        console.log('Avatar started talking', e);
-      });
-      avatar.on(StreamingEvents.AVATAR_STOP_TALKING, (e) => {
-        console.log('Avatar stopped talking', e);
-      });
-      avatar.on(StreamingEvents.STREAM_DISCONNECTED, () => {
-        console.log('Stream disconnected');
-      });
-      avatar.on(StreamingEvents.STREAM_READY, (event) => {
-        console.log('>>>>> Stream ready:', event.detail);
-        setLoading(false);
-        setStartTime(new Date());
-        
+  useEffect(() => {
+    if (sessionState === LiveAvatarSessionState.CONNECTED) {
+      if (mediaStream.current) {
+        attach(mediaStream.current);
+      }
+      
+      setLoading(false);
+      setStartTime(new Date());
+
+      if (!hasWelcomed.current) {
+        hasWelcomed.current = true;
         // Generate and speak AI welcome message
         setTimeout(async () => {
           try {
@@ -340,34 +295,18 @@ const Interview = ({
               setMessages([welcomeMsg]);
             saveMessageToSession(welcomeMsg);
           }
-        }, 3000); // Wait 3 seconds after stream is ready
-      });
-      avatar.on(StreamingEvents.USER_START, (event) => {
-        console.log('>>>>> User started talking:', event);
-      });
-      avatar.on(StreamingEvents.USER_STOP, (event) => {
-        console.log('>>>>> User stopped talking:', event);
-      });
-      avatar.on(StreamingEvents.USER_END_MESSAGE, (event) => {
-        console.log('>>>>> User end message:', event);
-      });
-      avatar.on(StreamingEvents.USER_TALKING_MESSAGE, (event) => {
-        console.log('>>>>> User talking message:', event);
-      });
-      avatar.on(StreamingEvents.AVATAR_TALKING_MESSAGE, (event) => {
-        console.log('>>>>> Avatar talking message:', event);
-      });
-      avatar.on(StreamingEvents.AVATAR_END_MESSAGE, (event) => {
-        console.log('>>>>> Avatar end message:', event);
-      });
-
-      await startAvatar(config);
-
-      if (isVoiceChat) {
-        await startVoiceChat();
+        }, 1000); // Wait 1 second after starting
       }
+    }
+  }, [sessionState, attach, role, knowledgeBase, speakMessage, saveMessageToSession]);
+
+  const startSessionV2 = useMemoizedFn(async () => {
+    try {
+      setLoading(true);
+      await start(mentorId);
     } catch (error) {
       console.error('Error starting avatar session:', error);
+      setLoading(false);
     }
   });
 
@@ -379,17 +318,13 @@ const Interview = ({
       tracks.forEach((track: MediaStreamTrack) => track.stop());
       videoRef.current.srcObject = null;
     }
-    stopAvatar();
+    if (sessionState !== LiveAvatarSessionState.INACTIVE) {
+      stop();
+    }
   });
 
-  useEffect(() => {
-    if (stream && mediaStream.current) {
-      mediaStream.current.srcObject = stream;
-      mediaStream.current.onloadedmetadata = () => {
-        mediaStream.current!.play();
-      };
-    }
-  }, [mediaStream, stream]);
+  // The media stream is handled by attaching to the ref in useEffect
+
 
   // Function to get mentor name by ID
   // Handle real-time user speech messages
@@ -529,7 +464,7 @@ const Interview = ({
       videoRef.current.srcObject = null;
     }
 
-    await stopAvatar();
+    await stop();
     setIsInterviewComplete(true);
   };
 
@@ -577,7 +512,7 @@ const Interview = ({
                 </span>
               </div>
               <div className="relative h-full bg-muted">
-                {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
+                {sessionState !== LiveAvatarSessionState.INACTIVE ? (
                   <video
                     playsInline
                     ref={mediaStream}
