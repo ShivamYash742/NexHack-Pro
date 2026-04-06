@@ -63,6 +63,7 @@ EYE_THRESHOLD = 0.22
 CALIBRATION_FRAMES = 80
 SMOOTHING = 5
 
+
 # ============================================================
 # State variables
 # ============================================================
@@ -101,6 +102,9 @@ def eye_aspect_ratio(landmarks, eye_indices):
         p4 = [landmarks[eye_indices[3]].x, landmarks[eye_indices[3]].y]
         p5 = [landmarks[eye_indices[4]].x, landmarks[eye_indices[4]].y]
         p6 = [landmarks[eye_indices[5]].x, landmarks[eye_indices[5]].y]
+
+        
+
 
         vertical = safe_distance(p2, p6) + safe_distance(p3, p5)
         horizontal = safe_distance(p1, p4)

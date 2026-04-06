@@ -1,1 +1,0 @@
-python start_stress_api.py --install
