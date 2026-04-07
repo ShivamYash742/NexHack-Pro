@@ -67,8 +67,14 @@ export const useSpeechToText = (options?: {
   const lang = options?.lang || "en-US";
   const continuous = options?.continuous ?? true;
   const interimResults = options?.interimResults ?? true;
-  const onSilenceTimeout = options?.onSilenceTimeout;
   const silenceTimeoutMs = options?.silenceTimeoutMs || 3000;
+  
+  // Store the callback in a ref so it doesn't cause re-initialization
+  const onSilenceTimeoutRef = useRef(options?.onSilenceTimeout);
+  
+  useEffect(() => {
+    onSilenceTimeoutRef.current = options?.onSilenceTimeout;
+  }, [options?.onSilenceTimeout]);
 
   useEffect(() => {
     transcriptRef.current = transcript;
@@ -91,11 +97,13 @@ export const useSpeechToText = (options?: {
     recognition.interimResults = interimResults;
 
     recognition.onstart = () => {
+      console.log('Speech recognition started successfully');
       setIsListening(true);
       setError(null);
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      console.log('Speech recognition result received');
       let currentInterim = "";
       let currentFinal = "";
 
@@ -120,11 +128,11 @@ export const useSpeechToText = (options?: {
         clearTimeout(silenceTimeoutRef.current);
       }
       
-      if (onSilenceTimeout) {
+      if (onSilenceTimeoutRef.current) {
         silenceTimeoutRef.current = setTimeout(() => {
           const combinedReady = transcriptRef.current + (transcriptRef.current && currentFinal.trim() ? " " : "") + currentFinal.trim();
-          if (combinedReady.trim().length > 0) {
-            onSilenceTimeout(combinedReady.trim());
+          if (combinedReady.trim().length > 0 && onSilenceTimeoutRef.current) {
+            onSilenceTimeoutRef.current(combinedReady.trim());
           }
         }, silenceTimeoutMs);
       }
@@ -132,28 +140,49 @@ export const useSpeechToText = (options?: {
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === 'aborted') {
-        // 'aborted' is expected when we call stop() manually
+        // 'aborted' is expected when we call stop() manually - not an error
+        console.log('Speech recognition aborted (expected)');
         setIsListening(false);
         return;
       }
-      console.warn("Speech recognition error:", event.error);
+      
+      // Log actual errors
+      console.error('Speech recognition error:', event.error, event);
+      
       if (event.error === 'not-allowed') {
         setError("Microphone access denied. Please enable it in your browser settings.");
+      } else if (event.error === 'no-speech') {
+        setError("No speech detected. Please speak louder or check your microphone.");
+      } else if (event.error === 'audio-capture') {
+        setError("No microphone found or microphone not working. Please check your device.");
+      } else if (event.error === 'network') {
+        setError("Network error. Speech recognition requires internet connection.");
       } else {
-        setError(event.error);
+        setError(`Speech recognition error: ${event.error}`);
       }
       setIsListening(false);
     };
 
     recognition.onend = () => {
+      console.log('Speech recognition ended. Intentionally stopped?', isIntentionallyStopped.current);
       setIsListening(false);
-      // Auto-restart if it ended naturally but we wanted it continuous
+      
+      // Only auto-restart if:
+      // 1. We didn't intentionally stop it
+      // 2. Continuous mode is enabled
+      // 3. We're not in the middle of cleanup
       if (!isIntentionallyStopped.current && continuous) {
-        try {
-          recognitionRef.current?.start();
-        } catch {
-          // Ignore invalid state
-        }
+        console.log('Auto-restarting speech recognition...');
+        // Add a small delay to prevent rapid restart loops
+        setTimeout(() => {
+          if (!isIntentionallyStopped.current && recognitionRef.current) {
+            try {
+              recognitionRef.current.start();
+            } catch (e) {
+              console.warn('Could not auto-restart:', e);
+            }
+          }
+        }, 100);
       }
     };
 
@@ -168,40 +197,87 @@ export const useSpeechToText = (options?: {
         clearTimeout(silenceTimeoutRef.current);
       }
     };
-  }, [lang, continuous, interimResults, onSilenceTimeout, silenceTimeoutMs]);
+  }, [lang, continuous, interimResults, silenceTimeoutMs]); // Removed onSilenceTimeout from deps
 
   const startListening = useCallback(() => {
     if (!isSupported) {
       setError("Speech recognition is not supported in this browser.");
       return;
     }
+    
+    console.log('🎤 USER CALLED startListening()');
+    
     setError(null);
     setTranscript("");
     setInterimTranscript("");
     transcriptRef.current = "";
     isIntentionallyStopped.current = false;
     
-    try {
-      recognitionRef.current?.start();
-    } catch (e: unknown) {
-      if (e instanceof Error && e.name !== 'InvalidStateError') {
-         console.warn("Could not start recognition:", e);
-      }
+    // Check microphone permissions first
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'microphone' as PermissionName }).then((result) => {
+        console.log('Microphone permission:', result.state);
+        if (result.state === 'denied') {
+          setError("Microphone permission denied. Please allow microphone access in browser settings.");
+        }
+      }).catch((err) => {
+        console.warn('Could not check microphone permission:', err);
+      });
     }
+    
+    // Use a small delay to ensure state is clean
+    setTimeout(() => {
+      try {
+        console.log('Starting speech recognition...');
+        if (recognitionRef.current) {
+          recognitionRef.current.start();
+          console.log('✅ Speech recognition start() called successfully');
+        } else {
+          console.error('❌ recognitionRef.current is null!');
+          setError('Speech recognition not initialized');
+        }
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          console.error('❌ Error calling start():', e.name, e.message);
+          if (e.name === 'InvalidStateError') {
+            // Already running, try to stop and restart
+            console.log('Already running, stopping first...');
+            try {
+              recognitionRef.current?.stop();
+              setTimeout(() => {
+                try {
+                  recognitionRef.current?.start();
+                } catch (err2) {
+                  console.error('Failed to restart:', err2);
+                }
+              }, 200);
+            } catch (stopErr) {
+              console.error('Failed to stop:', stopErr);
+            }
+          } else {
+            setError(`Failed to start: ${e.message}`);
+          }
+        }
+      }
+    }, 50);
   }, [isSupported]);
 
   const stopListening = useCallback(() => {
     if (!isSupported) return;
+    
+    console.log('🛑 USER CALLED stopListening()');
+    
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current);
     }
     isIntentionallyStopped.current = true;
+    
     try {
+      console.log('Stopping speech recognition...');
       recognitionRef.current?.stop();
     } catch (e) {
       console.warn("Could not stop recognition:", e);
     }
-    setIsListening(false);
   }, [isSupported]);
 
   const clearTranscript = useCallback(() => {

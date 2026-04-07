@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSpeechToText } from "../../hooks/useSpeechToText";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
 
@@ -10,6 +10,8 @@ export default function TestSpeechPage() {
   );
   const [sttResult, setSttResult] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
+  const [userAgent, setUserAgent] = useState<string>("");
+  const [micPermission, setMicPermission] = useState<string>("unknown");
 
   // Initialize TTS
   const {
@@ -20,6 +22,13 @@ export default function TestSpeechPage() {
     speak,
     stop: stopSpeaking,
   } = useTextToSpeech();
+
+  // Memoize the silence timeout callback to prevent useEffect re-runs
+  const handleSilenceTimeout = useCallback((finalText: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLogs((prev) => [`[${timestamp}] 🔕 Silence detected. Final text: "${finalText}"`, ...prev].slice(0, 50));
+    setSttResult(finalText);
+  }, []);
 
   // Initialize STT
   const {
@@ -35,10 +44,7 @@ export default function TestSpeechPage() {
     lang: "en-US",
     continuous: true,
     interimResults: true,
-    onSilenceTimeout: (finalText: string) => {
-      addLog(`🔕 Silence detected. Final text: "${finalText}"`);
-      setSttResult(finalText);
-    },
+    onSilenceTimeout: handleSilenceTimeout,
     silenceTimeoutMs: 3000,
   });
 
@@ -51,6 +57,23 @@ export default function TestSpeechPage() {
     addLog("🚀 Speech Test Page Loaded");
     addLog(`🎤 STT Supported: ${sttSupported}`);
     addLog(`🔊 TTS Supported: ${ttsSupported}`);
+    // Set user agent on client side only
+    setUserAgent(navigator.userAgent);
+    
+    // Check microphone permission
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'microphone' as PermissionName }).then((result) => {
+        setMicPermission(result.state);
+        addLog(`🎙️ Microphone permission: ${result.state}`);
+        
+        result.onchange = () => {
+          setMicPermission(result.state);
+          addLog(`🎙️ Microphone permission changed to: ${result.state}`);
+        };
+      }).catch((err) => {
+        addLog(`⚠️ Could not check microphone permission: ${err}`);
+      });
+    }
   }, [sttSupported, ttsSupported]);
 
   useEffect(() => {
@@ -58,15 +81,26 @@ export default function TestSpeechPage() {
       addLog(`🎵 Loaded ${voices.length} voices`);
       if (selectedVoice) {
         addLog(`✅ Selected voice: ${selectedVoice.name} (${selectedVoice.lang})`);
+      } else {
+        addLog(`⚠️ No voice selected - voices loaded but none chosen`);
       }
+    } else if (ttsSupported) {
+      addLog(`⏳ Waiting for voices to load...`);
     }
-  }, [voices, selectedVoice]);
+  }, [voices, selectedVoice, ttsSupported]);
 
   useEffect(() => {
     if (transcript) {
       addLog(`📝 Transcript updated: "${transcript}"`);
+      console.log('📝 TRANSCRIPT UPDATED:', transcript);
     }
   }, [transcript]);
+
+  useEffect(() => {
+    if (interimTranscript) {
+      console.log('💬 INTERIM:', interimTranscript);
+    }
+  }, [interimTranscript]);
 
   useEffect(() => {
     if (sttError) {
@@ -77,18 +111,32 @@ export default function TestSpeechPage() {
   const handleTestTTS = async () => {
     try {
       addLog(`🔊 Starting TTS: "${testText}"`);
+      addLog(`📊 Voices available: ${voices.length}, Selected: ${selectedVoice?.name || 'none'}`);
       await speak(testText);
       addLog("✅ TTS completed successfully");
     } catch (error) {
-      addLog(`❌ TTS Error: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      addLog(`❌ TTS Error: ${errorMessage}`);
+      console.error("TTS Error details:", error);
     }
   };
 
   const handleStartSTT = () => {
     addLog("🎤 Starting STT listening...");
+    console.log('🎤 USER CLICKED START LISTENING');
     clearTranscript();
     setSttResult("");
     startListening();
+    
+    // Add a timeout check
+    setTimeout(() => {
+      if (isListening) {
+        console.log('⏰ 5 seconds of listening - any results?', { transcript, interimTranscript });
+        if (!transcript && !interimTranscript) {
+          addLog("⚠️ No speech detected after 5 seconds. Try speaking louder!");
+        }
+      }
+    }, 5000);
   };
 
   const handleStopSTT = () => {
@@ -102,6 +150,22 @@ export default function TestSpeechPage() {
   const handleClearLogs = () => {
     setLogs([]);
     addLog("🧹 Logs cleared");
+  };
+
+  const testMicrophone = async () => {
+    try {
+      addLog("🎙️ Requesting microphone access...");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      addLog("✅ Microphone access granted!");
+      addLog(`🎤 Audio tracks: ${stream.getAudioTracks().length}`);
+      stream.getAudioTracks().forEach(track => {
+        addLog(`  - ${track.label} (${track.kind})`);
+        track.stop(); // Stop the track after testing
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      addLog(`❌ Microphone test failed: ${errorMessage}`);
+    }
   };
 
   return (
@@ -179,6 +243,14 @@ export default function TestSpeechPage() {
                 <p className="text-slate-300 mt-2">
                   Listening: {isListening ? "🎤 Active" : "⏸️ Inactive"}
                 </p>
+                <p className="text-slate-300">
+                  Mic Permission: {
+                    micPermission === "granted" ? "✅ Granted" :
+                    micPermission === "denied" ? "❌ Denied" :
+                    micPermission === "prompt" ? "⏳ Not requested" :
+                    "❓ Unknown"
+                  }
+                </p>
                 {sttError && (
                   <p className="text-red-400 mt-2">Error: {sttError}</p>
                 )}
@@ -208,10 +280,11 @@ export default function TestSpeechPage() {
             <div className="flex gap-4">
               <button
                 onClick={handleTestTTS}
-                disabled={!ttsSupported || isSpeaking}
+                disabled={!ttsSupported || isSpeaking || voices.length === 0}
                 className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors"
+                title={voices.length === 0 ? "Waiting for voices to load..." : ""}
               >
-                {isSpeaking ? "🔊 Speaking..." : "▶️ Speak Text"}
+                {isSpeaking ? "🔊 Speaking..." : voices.length === 0 ? "⏳ Loading..." : "▶️ Speak Text"}
               </button>
               <button
                 onClick={stopSpeaking}
@@ -230,6 +303,19 @@ export default function TestSpeechPage() {
             🎤 Test Speech-to-Text
           </h2>
           <div className="space-y-4">
+            {/* Microphone Test Button */}
+            <div className="bg-blue-900/30 border border-blue-500 rounded-lg p-4 mb-4">
+              <p className="text-blue-200 text-sm mb-2">
+                <strong>Step 1:</strong> First, test if your microphone works:
+              </p>
+              <button
+                onClick={testMicrophone}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+              >
+                🎙️ Test Microphone Access
+              </button>
+            </div>
+            
             <div className="flex gap-4">
               <button
                 onClick={handleStartSTT}
@@ -256,25 +342,40 @@ export default function TestSpeechPage() {
               </button>
             </div>
 
-            {/* Real-time interim transcript */}
-            {isListening && interimTranscript && (
-              <div className="p-4 bg-slate-700/50 rounded-lg border border-slate-600">
-                <p className="text-slate-400 text-sm mb-1">
-                  Interim (real-time):
+            {/* Big prominent display for what you're saying */}
+            <div className="bg-slate-900 rounded-lg p-6 border-4 border-purple-500 min-h-[150px]">
+              <p className="text-slate-400 text-sm mb-2">
+                {isListening ? "🎤 Listening... Speak now!" : "⏸️ Not listening"}
+              </p>
+              
+              {isListening && !transcript && !interimTranscript && (
+                <p className="text-slate-500 text-xl italic">
+                  Waiting for speech... (Try speaking louder)
                 </p>
-                <p className="text-yellow-300 italic">{interimTranscript}</p>
-              </div>
-            )}
+              )}
+              
+              {/* Live interim transcript (what you're saying RIGHT NOW) */}
+              {interimTranscript && (
+                <div className="mb-3">
+                  <p className="text-yellow-400 text-2xl font-bold animate-pulse">
+                    {interimTranscript}
+                  </p>
+                  <p className="text-yellow-600 text-xs mt-1">↑ Speaking now (interim)</p>
+                </div>
+              )}
+              
+              {/* Confirmed transcript */}
+              {transcript && (
+                <div>
+                  <p className="text-white text-2xl font-semibold">
+                    {transcript}
+                  </p>
+                  <p className="text-green-600 text-xs mt-1">↑ Confirmed text</p>
+                </div>
+              )}
+            </div>
 
-            {/* Current transcript */}
-            {transcript && (
-              <div className="p-4 bg-slate-700 rounded-lg border border-slate-600">
-                <p className="text-slate-400 text-sm mb-1">
-                  Current transcript:
-                </p>
-                <p className="text-white">{transcript}</p>
-              </div>
-            )}
+            {/* Removed duplicate smaller displays - using big prominent display above */}
 
             {/* Final result after silence */}
             {sttResult && (
@@ -309,7 +410,8 @@ export default function TestSpeechPage() {
                   startListening();
                 }, 500);
               } catch (error) {
-                addLog(`❌ Combined test error: ${error}`);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                addLog(`❌ Combined test error: ${errorMessage}`);
               }
             }}
             disabled={!sttSupported || !ttsSupported || isListening || isSpeaking}
@@ -349,7 +451,7 @@ export default function TestSpeechPage() {
         {/* Browser Info */}
         <div className="mt-6 p-4 bg-slate-800/30 rounded-lg border border-slate-700">
           <p className="text-slate-400 text-sm">
-            <strong>Browser:</strong> {navigator.userAgent}
+            <strong>Browser:</strong> {userAgent || "Loading..."}
           </p>
           <p className="text-slate-400 text-sm mt-2">
             <strong>Note:</strong> For best results, use Chrome or Edge. Safari

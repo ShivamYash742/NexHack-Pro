@@ -67,38 +67,53 @@ export const useTextToSpeech = () => {
           return;
         }
 
+        if (!text || text.trim().length === 0) {
+          reject(new Error("No text provided to speak"));
+          return;
+        }
+
         // Must cancel previous speech before starting new one safely
         window.speechSynthesis.cancel();
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        if (selectedVoice) {
-          utterance.voice = selectedVoice;
-        }
-        
-        utterance.rate = options?.rate || 1.0;
-        utterance.pitch = options?.pitch || 1.0;
-        utterance.volume = options?.volume || 1.0;
-
-        utterance.onstart = () => {
-          setIsSpeaking(true);
-        };
-
-        utterance.onend = () => {
-          setIsSpeaking(false);
-          resolve();
-        };
-
-        utterance.onerror = (e) => {
-          setIsSpeaking(false);
-          if (e.error === 'interrupted') {
-            resolve();
-          } else {
-            console.warn("Speech synthesis error:", e.error || 'unknown', e);
-            reject(e);
+        // Small delay to ensure previous cancel is processed
+        setTimeout(() => {
+          const utterance = new SpeechSynthesisUtterance(text);
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
           }
-        };
+          
+          utterance.rate = options?.rate || 1.0;
+          utterance.pitch = options?.pitch || 1.0;
+          utterance.volume = options?.volume || 1.0;
 
-        window.speechSynthesis.speak(utterance);
+          utterance.onstart = () => {
+            setIsSpeaking(true);
+          };
+
+          utterance.onend = () => {
+            setIsSpeaking(false);
+            resolve();
+          };
+
+          utterance.onerror = (e) => {
+            setIsSpeaking(false);
+            if (e.error === 'interrupted') {
+              resolve();
+            } else {
+              console.warn("Speech synthesis error:", e.error || 'unknown', e);
+              // Create a proper Error object with the event details
+              const errorMessage = `Speech synthesis error: ${e.error}${e.message ? ' - ' + e.message : ''}`;
+              reject(new Error(errorMessage));
+            }
+          };
+
+          try {
+            window.speechSynthesis.speak(utterance);
+          } catch (err) {
+            setIsSpeaking(false);
+            reject(err);
+          }
+        }, 100);
       });
     },
     [isSupported, selectedVoice]
