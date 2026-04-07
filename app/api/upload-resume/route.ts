@@ -11,6 +11,14 @@ import { generateText } from 'ai';
 import dbConnect from '@/lib/mongodb';
 import UserProfile from '@/lib/models/User';
 
+// Dynamic import for pdf-parse to avoid ESM issues
+async function parsePDF(buffer: Buffer): Promise<string> {
+  const { PDFParse } = await import('pdf-parse');
+  const parser = new PDFParse({ data: buffer });
+  const result = await parser.getText();
+  return result.text;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
@@ -35,14 +43,40 @@ export async function POST(req: NextRequest) {
 
     // Read file content for AI processing
     const fileBuffer = await file.arrayBuffer();
-    const fileContent = Buffer.from(fileBuffer).toString('utf-8');
+    let fileContent = '';
 
-    // Truncate file content to avoid Groq API size limits (max ~8000 chars)
+    // Check if it's a PDF file
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        // Parse PDF to extract text using dynamic import
+        fileContent = await parsePDF(Buffer.from(fileBuffer));
+        console.log('PDF parsed successfully, extracted text length:', fileContent.length);
+      } catch (pdfError) {
+        console.error('Error parsing PDF:', pdfError);
+        return NextResponse.json(
+          { error: 'Failed to parse PDF file. Please ensure the file is a valid PDF.' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // For text files, convert buffer to string
+      fileContent = Buffer.from(fileBuffer).toString('utf-8');
+    }
+
+    // Check if we extracted any content
+    if (!fileContent || fileContent.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'No text content could be extracted from the file. The PDF may be scanned images or empty.' },
+        { status: 400 }
+      );
+    }
+
+    // Truncate file content to avoid API size limits (max ~8000 chars)
     const truncatedContent = fileContent.length > 8000 
       ? fileContent.substring(0, 8000) + '\n\n[Content truncated due to length]'
       : fileContent;
 
-    // Generate resume summary using Groq
+    // Generate resume summary using Gemini
     const { text: resumeSummary } = await generateText({
       model: google('gemini-2.5-flash'),
       prompt: `Please analyze this resume and provide a concise summary (2-3 sentences) highlighting the candidate's key skills, experience, and qualifications:\n\n${truncatedContent}`,
@@ -65,6 +99,7 @@ export async function POST(req: NextRequest) {
       fileUrl: fileUrl.toString(),
       resumeSummary,
       userProfile,
+      extractedTextLength: fileContent.length,
     });
   } catch (error) {
     console.error('Error uploading resume:', error);

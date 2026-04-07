@@ -102,7 +102,7 @@ export const useTextToSpeech = () => {
             } else {
               console.warn("Speech synthesis error:", e.error || 'unknown', e);
               // Create a proper Error object with the event details
-              const errorMessage = `Speech synthesis error: ${e.error}${e.message ? ' - ' + e.message : ''}`;
+              const errorMessage = `Speech synthesis error: ${e.error}`;
               reject(new Error(errorMessage));
             }
           };
