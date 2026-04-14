@@ -90,7 +90,16 @@ const InterviewReport: React.FC<InterviewReportProps> = ({ interviewId, onBack }
   const fetchReport = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/generate-report?interviewId=${interviewId}`);
+      const response = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interviewId })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
 
       if (data.success) {

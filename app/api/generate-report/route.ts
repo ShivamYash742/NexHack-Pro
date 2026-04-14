@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { generateText } from 'ai';
-import { google } from '@/lib/gemini';
+import { groq } from '@/lib/groq';
 import dbConnect from '@/lib/mongodb';
 import InterviewSession, { IInterviewMetrics } from '@/lib/models/InterviewSession';
 import InterviewReport from '@/lib/models/InterviewReport';
 import Interview from '@/lib/models/Interview';
 import { mentors } from '@/components/mentors';
+import { getReportGenerationPrompt } from '@/lib/promptHelper';
 
 async function generateUnifiedReport(
   messages: Array<{ sender: string; text: string }>,
@@ -20,76 +21,27 @@ async function generateUnifiedReport(
     .map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`)
     .join('\n\n');
 
-  const schemaInstruction = `
-You are a world-class executive interview coach grading a candidate.
-Return ONLY valid JSON matching this exact structure:
-{
-  "performanceAnalysis": {
-    "communicationSkills": { "score": <0-100 number>, "strengths": ["string"], "improvements": ["string"], "feedback": "Detailed feedback string" },
-    "technicalKnowledge": { "score": <0-100 number>, "strengths": ["string"], "improvements": ["string"], "feedback": "Detailed feedback string" },
-    "problemSolving": { "score": <0-100 number>, "strengths": ["string"], "improvements": ["string"], "feedback": "Detailed feedback string" },
-    "confidence": { "score": <0-100 number>, "analysis": "Detailed analysis string", "recommendations": ["string"] },
-    "bodyLanguage": { "score": <0-100 number>, "observations": ["string"], "recommendations": ["string"] }
-  },
-  "detailedFeedback": {
-    "overallScore": <0-100 number>,
-    "summary": "Comprehensive executive summary",
-    "keyStrengths": ["string"],
-    "areasForImprovement": ["string"],
-    "behavioralInsights": {
-      "pauseAnalysis": "string",
-      "speechPaceAnalysis": "string",
-      "confidenceAnalysis": "string",
-      "emotionalStateAnalysis": "string"
-    },
-    "recommendations": {
-      "immediate": ["string"],
-      "shortTerm": ["string"],
-      "longTerm": ["string"]
-    },
-    "specificFeedback": [
-       {
-         "question": "The interviewer's question text",
-         "userResponse": "The candidate's response text",
-         "feedback": "Detailed critique of this specific answer",
-         "score": <0-100 number>,
-         "suggestions": ["string"]
-       }
-    ]
-  }
-}
-`;
-
-  const prompt = `
-${schemaInstruction}
-
-**CANDIDATE PROFILE:**
-- Target Role: ${jobTitle}
-- Background: ${userSummary}
-- Role Requirements: ${jobSummary}
-
-**BEHAVIORAL METRICS:**
-- Speaking Time: ${Math.round(Number(metrics.userSpeakingTime ?? 0) / 1000)} seconds
-- Speech Rate: ${Number(metrics.wordsPerMinute ?? 0)} WPM
-- Fluency: ${Number(metrics.fillerWordsCount ?? 0)} filler words
-- Confidence Index: ${Math.round(Number(metrics.confidenceScore ?? 0) * 100)}%
-
-**INTERVIEW TRANSCRIPT:**
-${conversationText}
-
-Provide an extremely demanding, Fortune-500 level assessment. Read the complete transcript and match each interviewer question with the corresponding candidate response in the specificFeedback array. Ensure you ONLY output the valid JSON.
-`;
+  const prompt = getReportGenerationPrompt({
+    jobTitle,
+    userSummary,
+    jobSummary,
+    speakingTime: Math.round(Number(metrics.userSpeakingTime ?? 0) / 1000),
+    wordsPerMinute: Number(metrics.wordsPerMinute ?? 0),
+    fillerWordsCount: Number(metrics.fillerWordsCount ?? 0),
+    confidenceScore: Math.round(Number(metrics.confidenceScore ?? 0) * 100),
+    conversationText
+  });
 
   try {
     let result;
-    const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+    const modelsToTry = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"];
     let lastError = null;
 
     for (const modelName of modelsToTry) {
       try {
         console.log(`Attempting unified report generation with ${modelName}...`);
         result = await generateText({
-          model: google(modelName),
+          model: groq(modelName),
           prompt,
           temperature: 0.3,
           maxRetries: 1,
@@ -214,30 +166,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { interviewId, sessionId } = await req.json();
+    const { interviewId, sessionId: providedSessionId } = await req.json();
 
-    if (!interviewId || !sessionId) {
+    if (!interviewId) {
       return NextResponse.json(
-        { error: 'Interview ID and Session ID are required' },
+        { error: 'Interview ID is required' },
         { status: 400 }
       );
     }
 
     await dbConnect();
 
-    const [interview, session] = await Promise.all([
-      Interview.findById(interviewId),
-      InterviewSession.findById(sessionId)
-    ]);
-
-    if (!interview || !session) {
+    const interview = await Interview.findById(interviewId);
+    
+    if (!interview) {
       return NextResponse.json(
-        { error: 'Interview or session not found' },
+        { error: 'Interview not found' },
         { status: 404 }
       );
     }
 
-    if (interview.userId !== userId || session.userId !== userId) {
+    if (interview.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Use provided sessionId or get it from interview
+    const sessionId = providedSessionId || interview.sessionId;
+    
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: 'Session ID not found for this interview' },
+        { status: 400 }
+      );
+    }
+
+    const session = await InterviewSession.findById(sessionId);
+
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      );
+    }
+
+    if (session.userId !== userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -253,7 +225,7 @@ export async function POST(req: NextRequest) {
     const mentor = mentors.find(m => m.id === interview.mentorId);
     const mentorName = mentor ? mentor.name : 'AI Interviewer';
 
-    // 1. Generate Unified Report using Gemini
+    // 1. Generate Unified Report using Groq
     const aiAnalysis = await generateUnifiedReport(
       session.messages,
       session.metrics as IInterviewMetrics,

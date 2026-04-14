@@ -4,6 +4,7 @@ import { generateWithGroq } from '@/lib/groq';
 import { parsePDF, truncateForAI } from '@/lib/pdf';
 import dbConnect from '@/lib/mongodb';
 import UserProfile from '@/lib/models/User';
+import { getResumeSummaryPrompt } from '@/lib/promptHelper';
 
 export async function POST(req: NextRequest) {
   try {
@@ -80,9 +81,8 @@ export async function POST(req: NextRequest) {
     const truncatedContent = truncateForAI(processedContent);
 
     // Generate resume summary using Groq (with automatic model fallback)
-    const { text: resumeSummary } = await generateWithGroq(
-      `Please analyze this resume and provide a concise summary (2-3 sentences) highlighting the candidate's key skills, experience, and qualifications:\n\n${truncatedContent}`
-    );
+    const prompt = getResumeSummaryPrompt(truncatedContent);
+    const { text: resumeSummary } = await generateWithGroq(prompt);
 
     console.log('resumeSummary', resumeSummary);
 

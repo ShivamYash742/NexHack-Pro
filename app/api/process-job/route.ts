@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { generateWithGroq } from '@/lib/groq';
+import { getJobSummaryPrompt } from '@/lib/promptHelper';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,14 +21,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate job summary using Groq (with automatic model fallback)
-    const jobPrompt = jobDescription
-      ? `Please analyze this job posting and provide a concise summary (2-3 sentences) highlighting the key requirements, responsibilities, and what the ideal candidate should have:
-
-Job Title: ${jobTitle}
-Job Description: ${jobDescription}`
-      : `Please provide a brief summary (2-3 sentences) of typical requirements and responsibilities for a ${jobTitle} position.`;
-
-    const { text: jobSummary } = await generateWithGroq(jobPrompt);
+    const prompt = getJobSummaryPrompt(jobTitle, jobDescription);
+    const { text: jobSummary } = await generateWithGroq(prompt);
 
     return NextResponse.json({
       success: true,

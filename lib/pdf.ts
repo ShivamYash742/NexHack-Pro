@@ -1,16 +1,65 @@
 /**
  * Shared PDF parsing utility.
- * Uses dynamic import for pdf-parse to avoid ESM bundling issues in Next.js.
- *
- * Previously duplicated in:
- *   - app/api/upload-resume/route.ts
- *   - app/api/process-resume/route.ts
+ * Uses pdf2json library for extracting text from PDF buffers.
  */
 export async function parsePDF(buffer: Buffer): Promise<string> {
-  const { PDFParse } = await import('pdf-parse');
-  const parser = new PDFParse({ data: buffer });
-  const result = await parser.getText();
-  return result.text;
+  return new Promise((resolve, reject) => {
+    try {
+      // Dynamically import pdf2json
+      import('pdf2json').then((module) => {
+        const PDFParser = module.default;
+        const pdfParser = new PDFParser(null, true); // Enable raw text mode
+
+        pdfParser.on('pdfParser_dataError', (errData: Error) => {
+          reject(new Error(`PDF parsing failed: ${errData.message}`));
+        });
+
+        pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+          try {
+            // Extract text from all pages
+            let text = '';
+            
+            if (pdfData && pdfData.Pages) {
+              for (const page of pdfData.Pages) {
+                if (page.Texts) {
+                  for (const textItem of page.Texts) {
+                    if (textItem.R) {
+                      for (const run of textItem.R) {
+                        if (run.T) {
+                          // Decode URI component (pdf2json encodes text)
+                          text += decodeURIComponent(run.T) + ' ';
+                        }
+                      }
+                    }
+                  }
+                  text += '\n'; // New line after each text block
+                }
+              }
+            }
+            
+            // Clean up the text
+            text = text.trim();
+            
+            if (!text || text.length === 0) {
+              reject(new Error('No text content extracted from PDF. The PDF might be scanned images or empty.'));
+              return;
+            }
+            
+            resolve(text);
+          } catch (err) {
+            reject(new Error(`Failed to extract text: ${err instanceof Error ? err.message : 'Unknown error'}`));
+          }
+        });
+
+        // Parse the buffer
+        pdfParser.parseBuffer(buffer);
+      }).catch((err) => {
+        reject(new Error(`Failed to load PDF parser: ${err.message}`));
+      });
+    } catch (error) {
+      reject(new Error(`PDF parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+    }
+  });
 }
 
 /**

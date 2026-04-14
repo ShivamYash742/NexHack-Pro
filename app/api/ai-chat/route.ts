@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWithGroq } from '@/lib/groq';
+import { getInterviewWelcomePrompt, getInterviewConversationPrompt } from '@/lib/promptHelper';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,18 +15,7 @@ export async function POST(request: NextRequest) {
 
     // Handle special cases
     if (message === 'START_INTERVIEW') {
-      const welcomePrompt = `${knowledgeBase}
-
-You are starting a mock interview for: ${interviewContext?.role || 'a position'}
-
-Generate a professional, warm welcome message to start the interview. Keep it:
-- Welcoming and professional
-- Brief (1-2 sentences)
-- Encouraging
-- Relevant to the role
-
-Respond ONLY with your welcome message, no additional formatting.`;
-
+      const welcomePrompt = getInterviewWelcomePrompt(knowledgeBase, interviewContext?.role || 'a position');
       const result = await generateWithGroq(welcomePrompt);
 
       return NextResponse.json({
@@ -35,28 +25,17 @@ Respond ONLY with your welcome message, no additional formatting.`;
     }
 
     // Build conversation context for regular responses
-    const systemPrompt = `${knowledgeBase}
-
-CONVERSATION CONTEXT:
-${interviewContext ? `Interview for: ${interviewContext.role}
-Candidate Background: ${interviewContext.candidateBackground}
-Interview Duration: ${interviewContext.duration || '3 minutes'}` : ''}
-
-CONVERSATION HISTORY:
-${conversationHistory?.map((msg: { sender: string; text: string }) => `${msg.sender}: ${msg.text}`).join('\n') || 'No previous conversation'}
-
-CURRENT USER MESSAGE: ${message}
-
-${message === '[USER_PAUSED]' ? 
-`The user has been silent for 5 seconds. As the AI interviewer, please gently check in with them, offer encouragement, or ask if they need you to repeat the last question. Keep it very short.` 
-: 
-`Please respond as the AI interviewer. Keep your response:
-- Professional and engaging
-- Concise (1-2 sentences max since this is a short interview)
-- Natural and conversational
-- ALWAYS reply directly to what the user just said, and then ALWAYS ask a relevant follow-up question to keep the interview moving.`}
-
-Respond ONLY with your interviewer response, no additional formatting or labels.`;
+    const conversationHistoryText = conversationHistory?.map((msg: { sender: string; text: string }) => `${msg.sender}: ${msg.text}`).join('\n') || 'No previous conversation';
+    
+    const systemPrompt = getInterviewConversationPrompt({
+      knowledgeBase,
+      role: interviewContext?.role || 'a position',
+      candidateBackground: interviewContext?.candidateBackground || 'User',
+      duration: interviewContext?.duration || '3 minutes',
+      conversationHistory: conversationHistoryText,
+      message,
+      isUserPaused: message === '[USER_PAUSED]'
+    });
 
     const result = await generateWithGroq(systemPrompt);
 
