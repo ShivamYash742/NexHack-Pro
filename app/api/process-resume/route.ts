@@ -25,7 +25,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { fileUrl, fileContent, fileName } = await req.json();
+    const body = await req.json();
+    const { fileUrl, fileContent, fileName } = body;
+    
+    console.log('process-resume called with:', { 
+      fileUrl, 
+      fileName,
+      fileContentType: typeof fileContent,
+      fileContentLength: fileContent?.length,
+      isBase64PDF: fileContent?.startsWith('data:application/pdf')
+    });
 
     if (!fileUrl || !fileContent) {
       return NextResponse.json(
@@ -39,22 +48,35 @@ export async function POST(req: NextRequest) {
     // If fileContent appears to be base64 PDF data, parse it
     if (fileContent.startsWith('data:application/pdf') || fileContent.startsWith('JVBER')) {
       try {
+        console.log('Detected PDF data, starting parse...');
+        
         // Remove data URL prefix if present
         let base64Data = fileContent;
         if (fileContent.startsWith('data:')) {
           base64Data = fileContent.split(',')[1];
         }
         
+        console.log('Base64 data length:', base64Data.length);
+        
         // Convert base64 to buffer
         const pdfBuffer = Buffer.from(base64Data, 'base64');
+        console.log('PDF buffer created, size:', pdfBuffer.length);
         
         // Parse PDF using dynamic import
         processedContent = await parsePDF(pdfBuffer);
         console.log('PDF parsed in process-resume, extracted text length:', processedContent.length);
       } catch (pdfError) {
         console.error('Error parsing PDF in process-resume:', pdfError);
-        // Fall back to original content if parsing fails
-        console.log('Falling back to original content');
+        console.error('PDF error stack:', pdfError instanceof Error ? pdfError.stack : 'No stack trace');
+        
+        // Return error instead of falling back
+        return NextResponse.json(
+          { 
+            error: 'Failed to parse PDF file', 
+            details: pdfError instanceof Error ? pdfError.message : String(pdfError)
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -100,9 +122,15 @@ export async function POST(req: NextRequest) {
       extractedTextLength: processedContent.length,
     });
   } catch (error) {
-    console.error('Error processing resume:', error);
+    console.error('Error processing resume - FULL ERROR:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    
     return NextResponse.json(
-      { error: 'Failed to process resume' },
+      { 
+        error: 'Failed to process resume',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

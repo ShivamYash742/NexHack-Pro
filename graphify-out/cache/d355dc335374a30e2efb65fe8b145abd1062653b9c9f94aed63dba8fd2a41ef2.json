@@ -1,0 +1,1 @@
+{"nodes": [{"id": "global_d_ts", "label": "global.d.ts", "file_type": "code", "source_file": "global.d.ts", "source_location": "L1"}], "edges": [{"source": "global_d_ts", "target": "mongoose", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "global.d.ts", "source_location": "L2", "weight": 1.0}]}

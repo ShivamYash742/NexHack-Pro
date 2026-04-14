@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexHack Pro — User Journey Flowchart</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #050510;
+      --surface: #0d0d1f;
+      --surface2: #13132b;
+      --border: rgba(120, 100, 255, 0.18);
+      --purple: #7c5cfc;
+      --purple-light: #a78bfa;
+      --blue: #38bdf8;
+      --cyan: #22d3ee;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --orange: #f97316;
+      --pink: #f472b6;
+      --red: #f87171;
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated starfield background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124, 92, 252, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .stars {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .star {
+      position: absolute;
+      border-radius: 50%;
+      background: white;
+      animation: twinkle var(--dur, 3s) ease-in-out infinite var(--delay, 0s);
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: var(--min-op, 0.1); transform: scale(1); }
+      50% { opacity: var(--max-op, 0.6); transform: scale(1.2); }
+    }
+
+    /* Header */
+    .header {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 56px 24px 32px;
+    }
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(124, 92, 252, 0.12);
+      border: 1px solid rgba(124, 92, 252, 0.3);
+      border-radius: 100px;
+      padding: 6px 18px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--purple-light);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .header-badge .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--purple-light);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    h1 {
+      font-size: clamp(28px, 5vw, 52px);
+      font-weight: 900;
+      background: linear-gradient(135deg, #fff 0%, var(--purple-light) 50%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+      margin-bottom: 14px;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-dim);
+      max-width: 560px;
+      margin: 0 auto 8px;
+      line-height: 1.6;
+    }
+    .source-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .source-note a { color: var(--purple-light); text-decoration: none; }
+
+    /* Legend */
+    .legend {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      padding: 0 24px 40px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .legend-dot {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* Main flowchart container */
+    .flowchart-wrapper {
+      position: relative;
+      z-index: 10;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* SVG connector lines */
+    .connectors {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      overflow: visible;
+    }
+
+    /* Phase sections */
+    .phase {
+      position: relative;
+      margin-bottom: 0;
+    }
+
+    .phase-label {
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .phase-label::before, .phase-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Arrow connector between phases */
+    .arrow-connector {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 48px;
+      position: relative;
+      z-index: 2;
+    }
+    .arrow-connector svg {
+      animation: bounce-down 2s ease-in-out infinite;
+    }
+    @keyframes bounce-down {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(6px); }
+    }
+
+    /* Node cards */
+    .node-row {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 2;
+    }
+
+    .node {
+      position: relative;
+      border-radius: 16px;
+      padding: 18px 22px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border: 1px solid transparent;
+      backdrop-filter: blur(10px);
+      animation: fadeInUp 0.5s ease both;
+      min-width: 180px;
+      max-width: 260px;
+      text-align: center;
+    }
+    .node:hover {
+      transform: translateY(-6px) scale(1.02);
+      z-index: 20;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Node types by color */
+    .node-entry {
+      background: linear-gradient(135deg, rgba(124,92,252,0.15) 0%, rgba(124,92,252,0.05) 100%);
+      border-color: rgba(124,92,252,0.5);
+      box-shadow: 0 0 24px rgba(124,92,252,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .node-entry:hover { box-shadow: 0 12px 40px rgba(124,92,252,0.3), 0 0 0 1px rgba(124,92,252,0.6); }
+
+    .node-auth {
+      background: linear-gradient(135deg, rgba(248,113,113,0.12) 0%, rgba(248,113,113,0.04) 100%);
+      border-color: rgba(248,113,113,0.4);
+      box-shadow: 0 0 24px rgba(248,113,113,0.08);
+    }
+    .node-auth:hover { box-shadow: 0 12px 40px rgba(248,113,113,0.25), 0 0 0 1px rgba(248,113,113,0.5); }
+
+    .node-setup {
+      background: linear-gradient(135deg, rgba(56,189,248,0.12) 0%, rgba(56,189,248,0.04) 100%);
+      border-color: rgba(56,189,248,0.4);
+      box-shadow: 0 0 24px rgba(56,189,248,0.08);
+    }
+    .node-setup:hover { box-shadow: 0 12px 40px rgba(56,189,248,0.25), 0 0 0 1px rgba(56,189,248,0.5); }
+
+    .node-interview {
+      background: linear-gradient(135deg, rgba(52,211,153,0.12) 0%, rgba(52,211,153,0.04) 100%);
+      border-color: rgba(52,211,153,0.4);
+      box-shadow: 0 0 24px rgba(52,211,153,0.08);
+    }
+    .node-interview:hover { box-shadow: 0 12px 40px rgba(52,211,153,0.25), 0 0 0 1px rgba(52,211,153,0.5); }
+
+    .node-api {
+      background: linear-gradient(135deg, rgba(251,191,36,0.1) 0%, rgba(251,191,36,0.03) 100%);
+      border-color: rgba(251,191,36,0.35);
+      box-shadow: 0 0 24px rgba(251,191,36,0.06);
+    }
+    .node-api:hover { box-shadow: 0 12px 40px rgba(251,191,36,0.2), 0 0 0 1px rgba(251,191,36,0.5); }
+
+    .node-report {
+      background: linear-gradient(135deg, rgba(244,114,182,0.12) 0%, rgba(244,114,182,0.04) 100%);
+      border-color: rgba(244,114,182,0.4);
+      box-shadow: 0 0 24px rgba(244,114,182,0.08);
+    }
+    .node-report:hover { box-shadow: 0 12px 40px rgba(244,114,182,0.25), 0 0 0 1px rgba(244,114,182,0.5); }
+
+    .node-db {
+      background: linear-gradient(135deg, rgba(249,115,22,0.1) 0%, rgba(249,115,22,0.03) 100%);
+      border-color: rgba(249,115,22,0.35);
+      box-shadow: 0 0 24px rgba(249,115,22,0.06);
+    }
+    .node-db:hover { box-shadow: 0 12px 40px rgba(249,115,22,0.2), 0 0 0 1px rgba(249,115,22,0.5); }
+
+    /* Node internals */
+    .node-icon {
+      font-size: 28px;
+      margin-bottom: 10px;
+      display: block;
+      filter: drop-shadow(0 0 8px currentColor);
+    }
+    .node-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+    .node-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .node-code {
+      margin-top: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      color: var(--text-muted);
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      padding: 4px 8px;
+      line-height: 1.5;
+      text-align: left;
+    }
+
+    /* Decision diamond */
+    .decision-row {
+      display: flex;
+      justify-content: center;
+      margin: 4px 0;
+      position: relative;
+      z-index: 2;
+    }
+    .decision {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+    .diamond-wrap {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+    }
+    .diamond {
+      width: 120px; height: 120px;
+      background: linear-gradient(135deg, rgba(124,92,252,0.2), rgba(56,189,248,0.1));
+      border: 1.5px solid rgba(124,92,252,0.5);
+      transform: rotate(45deg);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 0 30px rgba(124,92,252,0.15);
+      transition: all 0.3s ease;
+      cursor: default;
+    }
+    .diamond:hover {
+      box-shadow: 0 0 50px rgba(124,92,252,0.3);
+      transform: rotate(45deg) scale(1.05);
+    }
+    .diamond-inner {
+      transform: rotate(-45deg);
+      text-align: center;
+      padding: 8px;
+    }
+    .diamond-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--purple-light);
+      line-height: 1.3;
+    }
+    .branch-label {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    .branch-yes {
+      background: rgba(52,211,153,0.15);
+      color: var(--green);
+      border: 1px solid rgba(52,211,153,0.3);
+    }
+    .branch-no {
+      background: rgba(248,113,113,0.12);
+      color: var(--red);
+      border: 1px solid rgba(248,113,113,0.3);
+    }
+
+    /* Step number badge */
+    .step-badge {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      bottom: calc(100% + 12px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e1e3f;
+      border: 1px solid rgba(124,92,252,0.3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: var(--text-dim);
+      width: 220px;
+      text-align: left;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 100;
+      line-height: 1.5;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: rgba(124,92,252,0.3);
+    }
+    .node:hover .tooltip { opacity: 1; }
+
+    /* Flow sections with connector lines */
+    .flow-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    .down-line {
+      width: 2px;
+      height: 36px;
+      background: linear-gradient(to bottom, rgba(124,92,252,0.5), rgba(124,92,252,0.1));
+      position: relative;
+      z-index: 2;
+    }
+    .down-line::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: rgba(124,92,252,0.5);
+    }
+
+    /* Step counter timeline on left side */
+    .timeline {
+      position: fixed;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 50;
+    }
+    @media (max-width: 900px) { .timeline { display: none; } }
+    .timeline-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      border: 1px solid rgba(124, 92, 252, 0.3);
+      transition: all 0.3s;
+    }
+    .timeline-dot.active {
+      background: var(--purple);
+      box-shadow: 0 0 8px var(--purple);
+      transform: scale(1.4);
+    }
+
+    /* Sub-flow: API calls side panel */
+    .side-panel {
+      background: rgba(13,13,31,0.8);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin: 0 0 0 20px;
+      min-width: 200px;
+      max-width: 240px;
+    }
+    .side-panel-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .api-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 11px;
+    }
+    .api-item:last-child { border-bottom: none; }
+    .api-method {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .post { background: rgba(56,189,248,0.15); color: var(--blue); }
+    .get  { background: rgba(52,211,153,0.15); color: var(--green); }
+    .api-path { color: var(--text-dim); line-height: 1.4; }
+
+    /* Horizontal split for parallel actions */
+    .parallel-wrap {
+      display: flex;
+      gap: 40px;
+      align-items: stretch;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+    }
+    .parallel-wrap::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: calc(100% - 120px);
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(124,92,252,0.3), transparent);
+    }
+    .parallel-node {
+      flex: 1;
+      min-width: 160px;
+    }
+
+    /* Final success state */
+    .success-node {
+      background: linear-gradient(135deg, rgba(52,211,153,0.2) 0%, rgba(124,92,252,0.1) 100%);
+      border: 1.5px solid rgba(52,211,153,0.5);
+      box-shadow: 0 0 40px rgba(52,211,153,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .success-node:hover { box-shadow: 0 16px 50px rgba(52,211,153,0.3), 0 0 0 1px rgba(52,211,153,0.6); }
+
+    /* Scroll hint */
+    .scroll-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      animation: fadeIn 2s ease 1s both;
+      z-index: 50;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .scroll-hint svg { animation: bounce-down 1.5s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+
+<!-- Starfield -->
+<div class="stars" id="stars"></div>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-badge">
+    <span class="dot"></span>
+    Generated from graphify knowledge graph
+  </div>
+  <h1>NexHack Pro<br>User Journey</h1>
+  <p class="subtitle">How a new user navigates from landing page → sets up an interview → speaks with the AI → receives their performance report</p>
+  <p class="source-note">Source: <code>graphify-out/graph.json</code> · 171 nodes · 129 edges · 62 communities</p>
+</header>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:rgba(124,92,252,0.6)"></div> Entry / Navigation</div>
+  <div class="legend-item"><div class="legend-dot" style="background:rgba(248,113,113,0.6)"></div> Authentication</div>
+  <div class="legend-item"><div class="legend-dot" style="background:rgba(56,189,248,0.6)"></div> Setup Wizard</div>
+  <div class="legend-item"><div class="legend-dot" style="background:rgba(52,211,153,0.6)"></div> Live Interview</div>
+  <div class="legend-item"><div class="legend-dot" style="background:rgba(251,191,36,0.6)"></div> API / Backend</div>
+  <div class="legend-item"><div class="legend-dot" style="background:rgba(244,114,182,0.6)"></div> Report</div>
+</div>
+
+<!-- Main flowchart -->
+<div class="flowchart-wrapper">
+
+  <!-- ══════════ PHASE 1: DISCOVERY ══════════ -->
+  <div class="phase-label">Phase 1 — Discovery</div>
+  <div class="flow-section">
+    <div class="node-row">
+      <div class="node node-entry" style="animation-delay:0.0s" id="n-browser">
+        <div class="step-badge" style="background:var(--purple);color:#fff;">1</div>
+        <span class="node-icon">🌐</span>
+        <div class="node-title">Opens Browser</div>
+        <div class="node-sub">User visits <strong>localhost:3000</strong> or<br>the deployed URL</div>
+        <div class="node-code">app/layout.tsx → RootLayout()</div>
+        <div class="tooltip">RootLayout() wraps the entire app with Clerk auth provider + ThemeProvider. It's the outermost shell that every page inherits.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+
+    <div class="node-row">
+      <div class="node node-entry" style="animation-delay:0.1s">
+        <span class="node-icon">🏠</span>
+        <div class="node-title">Landing Page</div>
+        <div class="node-sub">Hero section, mentor showcase, feature cards, demo gallery</div>
+        <div class="node-code">app/page.tsx → Home()
+components/hero-section.tsx
+components/mentors.tsx
+components/features-section.tsx
+components/demos-section.tsx</div>
+        <div class="tooltip">Home() renders RetroGrid hero + MentorCard() gallery showing Bryan (IT), Elenora (IT), June (HR), Silas (HR), Wayne (Tech), Judy (Teacher) avatars pulled from /public/mentors/.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+  </div>
+
+  <!-- ══════════ PHASE 2: AUTHENTICATION ══════════ -->
+  <div class="phase-label">Phase 2 — Authentication</div>
+  <div class="flow-section">
+    <div class="decision-row">
+      <div class="decision">
+        <div class="diamond-wrap">
+          <span class="branch-label branch-no">← Already signed in?</span>
+          <div class="diamond">
+            <div class="diamond-inner">
+              <div class="diamond-text">Has<br>Account?</div>
+            </div>
+          </div>
+          <span class="branch-label branch-yes">New User →</span>
+        </div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+
+    <div class="node-row">
+      <div class="node node-auth" style="animation-delay:0.15s">
+        <span class="node-icon">🔐</span>
+        <div class="node-title">Clerk Sign Up / Log In</div>
+        <div class="node-sub">OAuth or email/password via Clerk's hosted UI</div>
+        <div class="node-code">app/layout.tsx → ClerkProvider
+middleware.ts → protectRoutes()</div>
+        <div class="tooltip">Clerk handles auth entirely. middleware.ts uses clerkMiddleware() to protect /interview/* and /report/* routes. Unauthenticated users are redirected to sign-in.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+
+    <div class="node-row">
+      <div class="node node-auth" style="animation-delay:0.2s">
+        <span class="node-icon">👤</span>
+        <div class="node-title">User Profile Loaded</div>
+        <div class="node-sub">Fetches resume data, name, preferences from MongoDB</div>
+        <div class="node-code">GET /api/user-profile
+lib/models/User.ts (Mongoose)
+lib/mongodb.ts → dbConnect()</div>
+        <div class="tooltip">GET() in user-profile/route.ts uses Clerk userId to look up the User document in MongoDB Atlas. Returns saved resume summary if user has interviewed before.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+  </div>
+
+  <!-- ══════════ PHASE 3: INTERVIEW SETUP WIZARD ══════════ -->
+  <div class="phase-label">Phase 3 — Interview Setup (3-Step Wizard)</div>
+  <div class="flow-section">
+    <div class="node-row">
+      <div class="node node-setup" style="animation-delay:0.25s; min-width:300px; max-width:380px;">
+        <div class="step-badge" style="background:var(--blue);color:#fff;">Step 1</div>
+        <span class="node-icon">📄</span>
+        <div class="node-title">Upload Resume (PDF)</div>
+        <div class="node-sub">User selects a PDF. File is stored in Appwrite Cloud Storage. Groq AI parses and summarises it.</div>
+        <div class="node-code">handleFileSelect() → triggerFileInput()
+uploadResume() → POST /api/upload-resume
+  parsePDF() extracts text from PDF
+  Groq LLaMA 3.1 → resume summary
+  Saved to Appwrite + MongoDB User doc</div>
+        <div class="tooltip">parsePDF() (upload-resume/route.ts) extracts raw text. POST() then sends it to Groq LLaMA-3.1-8B-instant to generate a structured resume summary stored on the user profile.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+
+    <div class="node-row">
+      <div class="node node-setup" style="animation-delay:0.3s; min-width:300px; max-width:380px;">
+        <div class="step-badge" style="background:var(--blue);color:#fff;">Step 2</div>
+        <span class="node-icon">💼</span>
+        <div class="node-title">Enter Job Description</div>
+        <div class="node-sub">User pastes the job posting. AI extracts role, skills, and key requirements.</div>
+        <div class="node-code">processJobDetails() → POST /api/process-job
+  Groq AI → structured job summary
+handleNextStep() advances wizard</div>
+        <div class="tooltip">processJobDetails() POSTs the raw JD text to /api/process-job. Groq generates a compact job profile (role, required skills, seniority) used to tailor interview questions.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+
+    <div class="node-row">
+      <div class="node node-setup" style="animation-delay:0.35s; min-width:300px; max-width:380px;">
+        <div class="step-badge" style="background:var(--blue);color:#fff;">Step 3</div>
+        <span class="node-icon">🧑‍💼</span>
+        <div class="node-title">Choose AI Mentor</div>
+        <div class="node-sub">Pick from 6 virtual interviewers (IT, HR, Teacher roles). Session created in MongoDB.</div>
+        <div class="node-code">createInterview() → POST /api/create-interview
+  MongoDB → Interview.ts document created
+  → Redirects to /interview/[id]
+lib/models/Interview.ts (Mongoose schema)</div>
+        <div class="tooltip">createInterview() stores the session with resume summary, job profile, chosen mentor, and userId in MongoDB. Returns the interview ID → user is pushed to /interview/[id].</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+  </div>
+
+  <!-- ══════════ PHASE 4: LIVE INTERVIEW ══════════ -->
+  <div class="phase-label">Phase 4 — Live Voice Interview</div>
+  <div class="flow-section">
+    <div class="node-row">
+      <div class="node node-interview" style="animation-delay:0.4s">
+        <span class="node-icon">🎙️</span>
+        <div class="node-title">Interview Session Starts</div>
+        <div class="node-sub">AI mentor speaks the welcome + first question via TTS</div>
+        <div class="node-code">app/interview/[id]/page.tsx → InterviewPage()
+components/interview.tsx
+initializeSession() → POST /api/interview-session
+getMentorName() → sets avatar + voice
+handleStartSession() → TTS speaks welcome</div>
+        <div class="tooltip">initializeSession() fetches the interview record and initialises the VoiceInterviewContext. The mentor's first question is generated by Groq and spoken by useTextToSpeech().</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+
+    <!-- Voice loop -->
+    <div class="node-row" style="gap:20px; align-items:stretch;">
+      <div class="node node-interview" style="animation-delay:0.42s; min-width:200px;">
+        <span class="node-icon">🔊</span>
+        <div class="node-title">AI Speaks Question</div>
+        <div class="node-sub">Browser TTS reads out the question in the selected mentor voice</div>
+        <div class="node-code">hooks/useTextToSpeech.ts
+Web Speech API SpeechSynthesis
+VoiceInterviewProvider()</div>
+        <div class="tooltip">useTextToSpeech() wraps window.speechSynthesis. The mentor's question text from Groq is passed as an utterance. Chrome/Edge required for best reliability.</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+        <div style="font-size:20px;">⟺</div>
+        <div style="font-size:9px;color:var(--text-muted);text-align:center;width:60px;">voice<br>loop</div>
+      </div>
+
+      <div class="node node-interview" style="animation-delay:0.44s; min-width:200px;">
+        <span class="node-icon">🎤</span>
+        <div class="node-title">User Answers</div>
+        <div class="node-sub">STT transcribes speech in real-time. 3s silence → sends transcript</div>
+        <div class="node-code">hooks/useSpeechToText.ts
+Web Speech API SpeechRecognition
+silenceTimeoutMs: 3000
+analyzeFillerWords()
+calculateWPM()</div>
+        <div class="tooltip">useSpeechToText() runs SpeechRecognition continuously, capturing interim + final results. After 3s of silence it fires onSilenceTimeout → transcript sent to Groq for next question.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+
+    <div class="node-row">
+      <div class="node node-api" style="animation-delay:0.47s; min-width:280px; max-width:380px;">
+        <span class="node-icon">🤖</span>
+        <div class="node-title">Groq AI Generates Next Question</div>
+        <div class="node-sub">Answer is sent to Groq LLaMA 3.1. AI responds with follow-up and scores the answer.</div>
+        <div class="node-code">POST /api/ai-chat → route.ts
+  analyzeConversationWithAI()
+  Groq LLaMA-3.1-8B-instant
+  → next question + STAR score
+PATCH /api/interview/[id] → saves message
+lib/models/InterviewSession.ts</div>
+        <div class="tooltip">The ai-chat route streams the Groq response. analyzeConversationWithAI() builds the system prompt with resume + job context. Each Q&A pair is saved to InterviewSession in MongoDB.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+
+    <div class="decision-row">
+      <div class="decision">
+        <div class="diamond-wrap">
+          <span class="branch-label branch-no">← More questions</span>
+          <div class="diamond">
+            <div class="diamond-inner">
+              <div class="diamond-text">Interview<br>Complete?</div>
+            </div>
+          </div>
+          <span class="branch-label branch-yes">Done →</span>
+        </div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+
+    <div class="node-row">
+      <div class="node node-interview" style="animation-delay:0.5s">
+        <span class="node-icon">🏁</span>
+        <div class="node-title">User Ends Interview</div>
+        <div class="node-sub">User clicks "End Interview". Speech metrics are computed before navigating away.</div>
+        <div class="node-code">exitInterview()
+  → analyzeFillerWords()    // counts um, uh, like…
+  → calculateWPM()           // words per minute
+  → formatTime()             // session duration
+components/interview-complete.tsx</div>
+        <div class="tooltip">exitInterview() runs final speech analytics before firing generateReport(). WPM, filler word frequency, and total time are bundled into the report payload.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+  </div>
+
+  <!-- ══════════ PHASE 5: REPORT GENERATION ══════════ -->
+  <div class="phase-label">Phase 5 — AI Report Generation</div>
+  <div class="flow-section">
+    <div class="node-row">
+      <div class="node node-api" style="animation-delay:0.55s; min-width:320px; max-width:420px;">
+        <span class="node-icon">⚙️</span>
+        <div class="node-title">Report Generated by Groq AI</div>
+        <div class="node-sub">Full conversation fed to Groq. Three analysis functions run in sequence to produce the report.</div>
+        <div class="node-code">generateReport() → POST /api/generate-report
+  ① analyzeConversationWithAI()
+      → overall score, strengths, weaknesses
+  ② analyzeVideoEmotions()
+      → synthetic stress/confidence signals
+  ③ generateSyntheticVideoInsights()
+      → behavioral pattern narrative
+  ④ generateQAFeedback()
+      → per-question STAR scoring
+lib/models/InterviewReport.ts → saved to MongoDB</div>
+        <div class="tooltip">generate-report/route.ts orchestrates four Groq calls. Each analyses a different dimension: holistic performance, emotional signals, behavioral patterns, and per-question STAR alignment.</div>
+      </div>
+    </div>
+    <div class="down-line"></div>
+  </div>
+
+  <!-- ══════════ PHASE 6: REPORT VIEWER ══════════ -->
+  <div class="phase-label">Phase 6 — Report Viewer</div>
+  <div class="flow-section">
+    <div class="node-row" style="gap:16px; align-items:stretch; flex-wrap:wrap;">
+
+      <div class="node node-report" style="animation-delay:0.6s; min-width:180px;">
+        <span class="node-icon">📊</span>
+        <div class="node-title">Report Page</div>
+        <div class="node-sub">Navigated to automatically after generation</div>
+        <div class="node-code">app/report/[id]/page.tsx
+→ ReportPage()
+→ InterviewReport() component</div>
+        <div class="tooltip">ReportPage() fetches the InterviewReport document by ID and passes it to InterviewReport() component which renders all sections with Radix UI Progress bars and charts.</div>
+      </div>
+
+      <div class="node node-report" style="animation-delay:0.62s; min-width:180px;">
+        <span class="node-icon">🎯</span>
+        <div class="node-title">Overall Score</div>
+        <div class="node-sub">0–100 score + hire recommendation</div>
+        <div class="node-code">Communication Skills
+Technical Knowledge
+Problem Solving
+Confidence Level</div>
+      </div>
+
+      <div class="node node-report" style="animation-delay:0.64s; min-width:180px;">
+        <span class="node-icon">🗣️</span>
+        <div class="node-title">Behavioral Insights</div>
+        <div class="node-sub">WPM, filler words, pause patterns, speech pace</div>
+        <div class="node-code">analyzeFillerWords() result
+calculateWPM() result
+Pause analysis
+Confidence analysis</div>
+      </div>
+
+      <div class="node node-report" style="animation-delay:0.66s; min-width:180px;">
+        <span class="node-icon">🧠</span>
+        <div class="node-title">Personality Profile</div>
+        <div class="node-sub">Big Five: Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism</div>
+        <div class="node-code">Enhanced Personality Profiling
+Big Five Scoring
+ENHANCED_INSIGHTS_SETUP.md</div>
+      </div>
+
+      <div class="node node-report" style="animation-delay:0.68s; min-width:180px;">
+        <span class="node-icon">❓</span>
+        <div class="node-title">Per-Question Feedback</div>
+        <div class="node-sub">STAR method alignment, red flags, improvement tips</div>
+        <div class="node-code">generateQAFeedback()
+STAR Method Scoring
+STRICT_SCORING_UPDATE.md</div>
+      </div>
+
+    </div>
+    <div class="down-line"></div>
+
+    <!-- Success -->
+    <div class="node-row">
+      <div class="node success-node" style="animation-delay:0.72s; min-width:320px; max-width:440px;">
+        <span class="node-icon">🎉</span>
+        <div class="node-title" style="font-size:16px; color: #6ee7b7;">Interview Complete!</div>
+        <div class="node-sub" style="font-size:12px; color: #a7f3d0; margin-top:6px;">
+          User has a full performance report with overall score, per-question STAR feedback,<br>
+          behavioral analytics, Big Five personality profile, and 30/60/90-day improvement roadmap.
+        </div>
+        <div class="node-code" style="margin-top:12px; font-size:10px;">
+          lib/models/InterviewReport.ts (MongoDB)
+          → Accessible at /report/[id]
+          → Future: PDF export, progress tracking
+        </div>
+      </div>
+    </div>
+
+    <!-- Data trail note -->
+    <div class="arrow-connector" style="height:40px;"></div>
+    <div class="node-row" style="gap:16px;">
+      <div class="node node-db" style="animation-delay:0.75s; min-width:160px;">
+        <span class="node-icon">🗄️</span>
+        <div class="node-title">MongoDB Atlas</div>
+        <div class="node-sub">Stores 3 documents per session</div>
+        <div class="node-code">Interview.ts
+InterviewSession.ts
+InterviewReport.ts</div>
+      </div>
+      <div class="node node-db" style="animation-delay:0.77s; min-width:160px;">
+        <span class="node-icon">📁</span>
+        <div class="node-title">Appwrite Storage</div>
+        <div class="node-sub">Resume PDF stored for re-use</div>
+        <div class="node-code">lib/appwrite.ts
+lib/appConfig.ts
+POST /api/upload-resume</div>
+      </div>
+      <div class="node node-db" style="animation-delay:0.79s; min-width:160px;">
+        <span class="node-icon">🔑</span>
+        <div class="node-title">Clerk Auth</div>
+        <div class="node-sub">Session & identity persisted across visits</div>
+        <div class="node-code">middleware.ts
+app/layout.tsx
+GET /api/user-profile</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end flowchart-wrapper -->
+
+<!-- Scroll hint -->
+<div class="scroll-hint">
+  <span>scroll to explore</span>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 5v14M5 12l7 7 7-7"/>
+  </svg>
+</div>
+
+<script>
+  // Generate starfield
+  const starsEl = document.getElementById('stars');
+  for (let i = 0; i < 120; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2.5 + 0.5;
+    s.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%; top:${Math.random()*100}%;
+      --dur:${2+Math.random()*4}s;
+      --delay:${Math.random()*4}s;
+      --min-op:${0.05+Math.random()*0.1};
+      --max-op:${0.3+Math.random()*0.4};
+    `;
+    starsEl.appendChild(s);
+  }
+
+  // Stagger animation delays
+  document.querySelectorAll('.node').forEach((n, i) => {
+    if (!n.style.animationDelay) n.style.animationDelay = (i * 0.06) + 's';
+  });
+
+  // Scroll-based timeline dots
+  const sections = document.querySelectorAll('.phase-label');
+  const timeline = document.createElement('div');
+  timeline.className = 'timeline';
+  sections.forEach((s, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'timeline-dot';
+    dot.title = s.textContent;
+    timeline.appendChild(dot);
+  });
+  document.body.appendChild(timeline);
+
+  const dots = timeline.querySelectorAll('.timeline-dot');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const idx = [...sections].indexOf(e.target);
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      }
+    });
+  }, { threshold: 0.5 });
+  sections.forEach(s => observer.observe(s));
+
+  // Fade out scroll hint
+  window.addEventListener('scroll', () => {
+    const hint = document.querySelector('.scroll-hint');
+    if (hint) hint.style.opacity = window.scrollY > 100 ? '0' : '1';
+  }, { passive: true });
+</script>
+</body>
+</html>

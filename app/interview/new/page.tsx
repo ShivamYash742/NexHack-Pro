@@ -98,7 +98,22 @@ export default function NewInterviewPage() {
       const fileUrl = storage.getFileView(BUCKET_ID, fileId);
 
       // Read file content for AI processing
-      const fileContent = await selectedFile.text();
+      let fileContent = '';
+      
+      if (selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf')) {
+        // For PDFs, send as base64
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const base64 = btoa(
+          new Uint8Array(arrayBuffer).reduce(
+            (data, byte) => data + String.fromCharCode(byte),
+            ''
+          )
+        );
+        fileContent = `data:application/pdf;base64,${base64}`;
+      } else {
+        // For text files, read as text
+        fileContent = await selectedFile.text();
+      }
 
       // Send file URL and content to API for AI processing
       const response = await fetch('/api/process-resume', {
@@ -113,6 +128,20 @@ export default function NewInterviewPage() {
         }),
       });
 
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        
+        // Try to parse as JSON for detailed error
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.details || errorData.error || errorText);
+        } catch (parseError) {
+          throw new Error(`Server error: ${response.status} - ${errorText}`);
+        }
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -120,12 +149,13 @@ export default function NewInterviewPage() {
         setUserProfile(data.userProfile);
         return true;
       } else {
-        alert('Failed to process resume: ' + data.error);
+        alert('Failed to process resume: ' + (data.details || data.error));
         return false;
       }
     } catch (error) {
       console.error('Error uploading resume:', error);
-      alert('Failed to upload resume');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload resume';
+      alert(errorMessage);
       return false;
     } finally {
       setLoading(false);
