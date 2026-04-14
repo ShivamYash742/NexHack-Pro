@@ -16,11 +16,7 @@ export const useVoiceInterview = () => {
     messages
   } = useVoiceInterviewContext();
 
-<<<<<<< HEAD
   const aiStateRef = useRef<{ kb: string, role: string, isProcessing: boolean, isPaused: boolean, isActive: boolean }>({ kb: "", role: "", isProcessing: false, isPaused: false, isActive: false });
-=======
-  const aiStateRef = useRef<{ kb: string, role: string, isProcessing: boolean, isPaused: boolean }>({ kb: "", role: "", isProcessing: false, isPaused: false });
->>>>>>> 363c1ee64ef7561ba102b9e7df43037912112ccf
 
   const handleUserSpeech = async (text: string) => {
     if (aiStateRef.current.isProcessing) return;
@@ -65,21 +61,13 @@ export const useVoiceInterview = () => {
   };
 
   const { startListening, stopListening, interimTranscript, isSupported: isSttSupported, error: sttError, isListening } = useSpeechToText({
-<<<<<<< HEAD
     silenceTimeoutMs: 3000,
-=======
-    silenceTimeoutMs: 5000,
->>>>>>> 363c1ee64ef7561ba102b9e7df43037912112ccf
     onSilenceTimeout: (finalText) => {
       // User finished speaking a chunk or stayed silent for 5 seconds
       if (!finalText.trim()) {
         if (!aiStateRef.current.isProcessing && !aiStateRef.current.isPaused && sessionState === VoiceSessionState.CONNECTED) {
           handleUserSpeech("[USER_PAUSED]");
-<<<<<<< HEAD
         } else if (!aiStateRef.current.isProcessing && !aiStateRef.current.isPaused && aiStateRef.current.isActive) {
-=======
-        } else if (!aiStateRef.current.isProcessing && !aiStateRef.current.isPaused) {
->>>>>>> 363c1ee64ef7561ba102b9e7df43037912112ccf
           startListening();
         }
         return;
