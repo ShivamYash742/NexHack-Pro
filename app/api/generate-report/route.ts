@@ -59,7 +59,16 @@ async function generateUnifiedReport(
     }
 
     const cleanedText = result.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleanedText);
+    const parsedReport = JSON.parse(cleanedText);
+    
+    // Validate and fix specificFeedback array
+    if (parsedReport.detailedFeedback?.specificFeedback) {
+      parsedReport.detailedFeedback.specificFeedback = parsedReport.detailedFeedback.specificFeedback.filter(
+        (item: any) => item.question && item.userResponse && item.feedback
+      );
+    }
+    
+    return parsedReport;
   } catch (error) {
     console.error('Error in unified report generation (fallback triggered):', error);
     
