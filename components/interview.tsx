@@ -12,6 +12,8 @@ import {
   X,
   Send,
   Waves,
+  Pause,
+  Play,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,7 +48,7 @@ const Interview = ({
   role: string;
   mentorId: string;
 }) => {
-  const { sessionState, start, stop, speakMessage, interimTranscript, sttError, isListening } = useVoiceInterview();
+  const { sessionState, start, stop, speakMessage, interimTranscript, sttError, isListening, togglePause } = useVoiceInterview();
   const { isUserTalking, isAvatarTalking, messages: contextMessages } = useVoiceInterviewContext();
 
   const [isCameraOn, setIsCameraOn] = useState(true);
@@ -374,7 +376,7 @@ const Interview = ({
                    </Button>
                 ) : (
                   <h3 className="text-xl font-medium tracking-wide">
-                    {isAvatarTalking ? "Speaking..." : sessionState === VoiceSessionState.CONNECTED ? "Listening..." : "Connecting..."}
+                    {sessionState === VoiceSessionState.PAUSED ? "Paused" : isAvatarTalking ? "Speaking..." : sessionState === VoiceSessionState.CONNECTED ? "Listening..." : "Connecting..."}
                   </h3>
                 )}
               </div>
@@ -519,6 +521,16 @@ const Interview = ({
           className="rounded-full shadow-sm w-14 h-14"
         >
           <MessageSquare className="w-6 h-6" />
+        </Button>
+
+        <Button
+          variant={sessionState === VoiceSessionState.PAUSED ? 'default' : 'outline'}
+          size="lg"
+          onClick={togglePause}
+          disabled={sessionState === VoiceSessionState.INACTIVE}
+          className={`rounded-full shadow-sm w-14 h-14 ${sessionState === VoiceSessionState.PAUSED ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500' : 'text-amber-500 border-amber-500/50 hover:bg-amber-50 dark:hover:bg-amber-950'}`}
+        >
+          {sessionState === VoiceSessionState.PAUSED ? <Play className="w-6 h-6" /> : <Pause className="w-6 h-6" />}
         </Button>
 
         <AlertDialog>

@@ -83,6 +83,50 @@ export async function POST(req: NextRequest) {
         await session.save();
         break;
 
+      case 'add_messages_batch':
+        // Batch insert multiple messages in a single DB write
+        const { messagesData } = await req.json().catch(() => ({ messagesData: null }));
+        if (!messagesData || !Array.isArray(messagesData) || messagesData.length === 0) {
+          return NextResponse.json(
+            { error: 'messagesData array is required for batch insert' },
+            { status: 400 }
+          );
+        }
+
+        const batchSession = await InterviewSession.findOne({
+          interviewId,
+          status: 'active',
+        });
+
+        if (!batchSession) {
+          return NextResponse.json(
+            { error: 'Active session not found' },
+            { status: 404 }
+          );
+        }
+
+        // Use $push with $each for atomic batch insert — single DB write
+        await InterviewSession.findByIdAndUpdate(batchSession._id, {
+          $push: {
+            messages: {
+              $each: messagesData.map((msg: Record<string, unknown>) => ({
+                id: (msg.id as string) || Date.now().toString(),
+                sender: msg.sender,
+                text: msg.text,
+                timestamp: new Date((msg.timestamp as string) || Date.now()),
+                duration: msg.duration,
+                pauseBefore: msg.pauseBefore,
+                confidence: msg.confidence,
+                emotion: msg.emotion,
+                volume: msg.volume,
+              })),
+            },
+          },
+        });
+
+        session = batchSession;
+        break;
+
       case 'update_metrics':
         if (!metricsData) {
           return NextResponse.json(

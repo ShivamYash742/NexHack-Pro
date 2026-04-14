@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY || '',
-});
-import { generateText } from 'ai';
+import { generateWithFallback } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +19,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate job summary using Gemini
+    // Generate job summary using Gemini (with automatic model fallback)
     const jobPrompt = jobDescription
       ? `Please analyze this job posting and provide a concise summary (2-3 sentences) highlighting the key requirements, responsibilities, and what the ideal candidate should have:
 
@@ -32,10 +27,7 @@ Job Title: ${jobTitle}
 Job Description: ${jobDescription}`
       : `Please provide a brief summary (2-3 sentences) of typical requirements and responsibilities for a ${jobTitle} position.`;
 
-    const { text: jobSummary } = await generateText({
-      model: google('gemini-2.5-flash'),
-      prompt: jobPrompt,
-    });
+    const { text: jobSummary } = await generateWithFallback(jobPrompt);
 
     return NextResponse.json({
       success: true,

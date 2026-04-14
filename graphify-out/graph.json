@@ -28,6 +28,49 @@
         "confidence": "EXTRACTED",
         "confidence_score": 0.9,
         "source_file": "QUICK_START_SPEECH_TEST.md"
+      },
+      {
+        "id": "gemini_fallback_chain",
+        "label": "Gemini Fallback Pipeline",
+        "nodes": [
+          "gemini_model_flash25",
+          "gemini_model_flash20",
+          "gemini_model_pro15",
+          "heuristic_fallback_engine"
+        ],
+        "relation": "form",
+        "confidence": "EXTRACTED",
+        "confidence_score": 0.98,
+        "source_file": "app/api/generate-report/route.ts"
+      },
+      {
+        "id": "voice_interview_core",
+        "label": "Voice Interview Core",
+        "nodes": [
+          "usevoiceinterview_handleuserspeech",
+          "usevoiceinterview_speakmessage",
+          "usevoiceinterview_togglepause"
+        ],
+        "relation": "form",
+        "confidence": "EXTRACTED",
+        "confidence_score": 0.95,
+        "source_file": "components/logic/useVoiceInterview.ts"
+      }
+    ],
+    "generated_at": "2026-04-14T15:19:00+05:30",
+    "graphify_version": "2.0 (updated)",
+    "legend_additions": [
+      {
+        "cid": 62,
+        "color": "#8B5CF6",
+        "label": "Gemini AI Models",
+        "count": 3
+      },
+      {
+        "cid": 63,
+        "color": "#EF4444",
+        "label": "Heuristic Fallback Engine",
+        "count": 1
       }
     ]
   },
@@ -1734,6 +1777,87 @@
       "id": "wayne_20240711_webp",
       "community": 36,
       "norm_label": "wayne (tech mentor)"
+    },
+    {
+      "label": "generateUnifiedReport()",
+      "file_type": "code",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L15",
+      "id": "route_generateunifiedreport",
+      "community": 0,
+      "norm_label": "generateunifiedreport()"
+    },
+    {
+      "label": "gemini-2.5-flash",
+      "file_type": "document",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L89",
+      "id": "gemini_model_flash25",
+      "community": 62,
+      "norm_label": "gemini-2.5-flash"
+    },
+    {
+      "label": "gemini-2.0-flash",
+      "file_type": "document",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L89",
+      "id": "gemini_model_flash20",
+      "community": 62,
+      "norm_label": "gemini-2.0-flash"
+    },
+    {
+      "label": "gemini-1.5-pro",
+      "file_type": "document",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L89",
+      "id": "gemini_model_pro15",
+      "community": 62,
+      "norm_label": "gemini-1.5-pro"
+    },
+    {
+      "label": "Heuristic Fallback Engine",
+      "file_type": "document",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L118",
+      "id": "heuristic_fallback_engine",
+      "community": 63,
+      "norm_label": "heuristic fallback engine"
+    },
+    {
+      "label": "handleUserSpeech()",
+      "file_type": "code",
+      "source_file": "components/logic/useVoiceInterview.ts",
+      "source_location": "L21",
+      "id": "usevoiceinterview_handleuserspeech",
+      "community": 26,
+      "norm_label": "handleuserspeech()"
+    },
+    {
+      "label": "speakMessage()",
+      "file_type": "code",
+      "source_file": "components/logic/useVoiceInterview.ts",
+      "source_location": "L122",
+      "id": "usevoiceinterview_speakmessage",
+      "community": 26,
+      "norm_label": "speakmessage()"
+    },
+    {
+      "label": "togglePause()",
+      "file_type": "code",
+      "source_file": "components/logic/useVoiceInterview.ts",
+      "source_location": "L80",
+      "id": "usevoiceinterview_togglepause",
+      "community": 26,
+      "norm_label": "togglepause()"
+    },
+    {
+      "label": "saveMessageToSession()",
+      "file_type": "code",
+      "source_file": "components/interview.tsx",
+      "source_location": "L123",
+      "id": "interview_savemessagetosession",
+      "community": 4,
+      "norm_label": "savemessagetosession()"
     }
   ],
   "links": [
@@ -3284,6 +3408,162 @@
       "_tgt": "silashr_public_webp",
       "source": "june_hr_public_webp",
       "target": "silashr_public_webp"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "app_api_generate_report_route_ts",
+      "_tgt": "route_generateunifiedreport",
+      "source": "app_api_generate_report_route_ts",
+      "target": "route_generateunifiedreport",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "route_generateunifiedreport",
+      "_tgt": "gemini_model_flash25",
+      "source": "route_generateunifiedreport",
+      "target": "gemini_model_flash25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls_fallback",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "route_generateunifiedreport",
+      "_tgt": "gemini_model_flash20",
+      "source": "route_generateunifiedreport",
+      "target": "gemini_model_flash20",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls_fallback",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "route_generateunifiedreport",
+      "_tgt": "gemini_model_pro15",
+      "source": "route_generateunifiedreport",
+      "target": "gemini_model_pro15",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "fallback_to",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "route_generateunifiedreport",
+      "_tgt": "heuristic_fallback_engine",
+      "source": "route_generateunifiedreport",
+      "target": "heuristic_fallback_engine",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "fallback_chain",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "gemini_model_flash25",
+      "_tgt": "gemini_model_flash20",
+      "source": "gemini_model_flash25",
+      "target": "gemini_model_flash20",
+      "confidence_score": 0.98
+    },
+    {
+      "relation": "fallback_chain",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "gemini_model_flash20",
+      "_tgt": "gemini_model_pro15",
+      "source": "gemini_model_flash20",
+      "target": "gemini_model_pro15",
+      "confidence_score": 0.98
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "components_logic_usevoiceinterview_ts",
+      "_tgt": "usevoiceinterview_handleuserspeech",
+      "source": "components_logic_usevoiceinterview_ts",
+      "target": "usevoiceinterview_handleuserspeech",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "components_logic_usevoiceinterview_ts",
+      "_tgt": "usevoiceinterview_speakmessage",
+      "source": "components_logic_usevoiceinterview_ts",
+      "target": "usevoiceinterview_speakmessage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "components_logic_usevoiceinterview_ts",
+      "_tgt": "usevoiceinterview_togglepause",
+      "source": "components_logic_usevoiceinterview_ts",
+      "target": "usevoiceinterview_togglepause",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "usevoiceinterview_handleuserspeech",
+      "_tgt": "usevoiceinterview_speakmessage",
+      "source": "usevoiceinterview_handleuserspeech",
+      "target": "usevoiceinterview_speakmessage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "components_interview_tsx",
+      "_tgt": "interview_savemessagetosession",
+      "source": "components_interview_tsx",
+      "target": "interview_savemessagetosession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "used_by",
+      "confidence": "INFERRED",
+      "source_file": "app/api/generate-report/route.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_src": "gemini_setup_gemini_api",
+      "_tgt": "route_generateunifiedreport",
+      "source": "gemini_setup_gemini_api",
+      "target": "route_generateunifiedreport",
+      "confidence_score": 0.9
     }
   ],
   "hyperedges": [

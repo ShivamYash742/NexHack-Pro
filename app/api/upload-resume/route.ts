@@ -2,22 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { storage, BUCKET_ID } from '@/lib/appwrite';
 import { ID } from 'appwrite';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY || '',
-});
-import { generateText } from 'ai';
+import { generateWithFallback } from '@/lib/gemini';
+import { parsePDF, truncateForAI } from '@/lib/pdf';
 import dbConnect from '@/lib/mongodb';
 import UserProfile from '@/lib/models/User';
-
-// Dynamic import for pdf-parse to avoid ESM issues
-async function parsePDF(buffer: Buffer): Promise<string> {
-  const { PDFParse } = await import('pdf-parse');
-  const parser = new PDFParse({ data: buffer });
-  const result = await parser.getText();
-  return result.text;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,7 +36,7 @@ export async function POST(req: NextRequest) {
     // Check if it's a PDF file
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       try {
-        // Parse PDF to extract text using dynamic import
+        // Parse PDF using shared utility
         fileContent = await parsePDF(Buffer.from(fileBuffer));
         console.log('PDF parsed successfully, extracted text length:', fileContent.length);
       } catch (pdfError) {
@@ -71,16 +59,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Truncate file content to avoid API size limits (max ~8000 chars)
-    const truncatedContent = fileContent.length > 8000 
-      ? fileContent.substring(0, 8000) + '\n\n[Content truncated due to length]'
-      : fileContent;
+    // Truncate file content to avoid API size limits
+    const truncatedContent = truncateForAI(fileContent);
 
-    // Generate resume summary using Gemini
-    const { text: resumeSummary } = await generateText({
-      model: google('gemini-2.5-flash'),
-      prompt: `Please analyze this resume and provide a concise summary (2-3 sentences) highlighting the candidate's key skills, experience, and qualifications:\n\n${truncatedContent}`,
-    });
+    // Generate resume summary using Gemini (with automatic model fallback)
+    const { text: resumeSummary } = await generateWithFallback(
+      `Please analyze this resume and provide a concise summary (2-3 sentences) highlighting the candidate's key skills, experience, and qualifications:\n\n${truncatedContent}`
+    );
 
     // Connect to database and save/update user profile
     await dbConnect();

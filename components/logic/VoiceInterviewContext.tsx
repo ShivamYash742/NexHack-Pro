@@ -6,6 +6,7 @@ export enum VoiceSessionState {
   INACTIVE = "INACTIVE",
   CONNECTING = "CONNECTING",
   CONNECTED = "CONNECTED",
+  PAUSED = "PAUSED",
 }
 
 export enum MessageSender {

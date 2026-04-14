@@ -125,6 +125,15 @@ export const useTextToSpeech = () => {
     setIsSpeaking(false);
   }, [isSupported]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   return {
     isSpeaking,
     isSupported,

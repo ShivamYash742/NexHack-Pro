@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { CheckCircle, ArrowRight, Loader2, Sparkles, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
@@ -9,10 +9,14 @@ interface InterviewCompleteProps {
   sessionId?: string | null;
 }
 
+const MAX_RETRIES = 3;
+
 const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sessionId }) => {
   const [showAnimation, setShowAnimation] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowAnimation(true), 200);
@@ -23,6 +27,7 @@ const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sess
     if (!interviewId || !sessionId) return;
     
     setGeneratingReport(true);
+    setError(null);
     try {
       const response = await fetch('/api/generate-report', {
         method: 'POST',
@@ -33,9 +38,17 @@ const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sess
       const data = await response.json();
       if (data.success) {
         setReportGenerated(true);
+      } else {
+        throw new Error(data.error || 'Report generation failed');
       }
-    } catch (error) {
-      console.error('Error generating report:', error);
+    } catch (err) {
+      console.error('Error generating report:', err);
+      setRetryCount(prev => prev + 1);
+      setError(
+        retryCount + 1 >= MAX_RETRIES
+          ? 'Report generation failed after multiple attempts. Please try again later from the dashboard.'
+          : `Report generation failed. ${MAX_RETRIES - retryCount - 1} retries remaining.`
+      );
     } finally {
       setGeneratingReport(false);
     }
@@ -74,13 +87,39 @@ const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sess
             </div>
           </div>
 
+          {/* Error State */}
+          {error && (
+            <div
+              className={`flex items-start gap-3 p-4 rounded-xl border border-red-500/30 bg-red-500/10 backdrop-blur-sm transition-all duration-500 ${
+                showAnimation ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-red-300">{error}</p>
+                {retryCount < MAX_RETRIES && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={generateReport}
+                    disabled={generatingReport}
+                    className="mt-2 h-8 text-red-300 hover:text-red-100 hover:bg-red-500/20 gap-2"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Retry
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div
             className={`flex flex-col sm:flex-row justify-center items-center gap-4 transition-all duration-1000 delay-300 ease-out transform ${
               showAnimation ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
             }`}
           >
-            {!reportGenerated && interviewId && sessionId && (
+            {!reportGenerated && interviewId && sessionId && !error && (
               <Button 
                 size="lg" 
                 onClick={generateReport}
@@ -130,3 +169,4 @@ const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sess
 };
 
 export default InterviewComplete;
+

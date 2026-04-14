@@ -146,13 +146,18 @@ export const useSpeechToText = (options?: {
         return;
       }
       
+      if (event.error === 'no-speech') {
+        // 'no-speech' happens automatically during silence. Don't throw a scary UI error.
+        console.log('Speech recognition paused due to silence (no-speech). Will auto-restart.');
+        setIsListening(false);
+        return;
+      }
+      
       // Log actual errors
       console.error('Speech recognition error:', event.error, event);
       
       if (event.error === 'not-allowed') {
         setError("Microphone access denied. Please enable it in your browser settings.");
-      } else if (event.error === 'no-speech') {
-        setError("No speech detected. Please speak louder or check your microphone.");
       } else if (event.error === 'audio-capture') {
         setError("No microphone found or microphone not working. Please check your device.");
       } else if (event.error === 'network') {
