@@ -35,6 +35,8 @@ export default function NewInterviewPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [resumeSummary, setResumeSummary] = useState('');
   const [useExistingResume, setUseExistingResume] = useState(false);
+  const [resumeText, setResumeText] = useState(''); // For manual text input
+  const [uploadMethod, setUploadMethod] = useState<'file' | 'text'>('file');
 
   // Step 2: Job Details
   const [jobTitle, setJobTitle] = useState('');
@@ -82,6 +84,49 @@ export default function NewInterviewPage() {
       'resume-upload'
     ) as HTMLInputElement;
     fileInput?.click();
+  };
+
+  const processResumeText = async () => {
+    if (!resumeText.trim()) return false;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/process-resume', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileUrl: 'text-input',
+          fileContent: resumeText,
+          fileName: 'resume.txt',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error('Failed to process resume text');
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResumeSummary(data.resumeSummary);
+        setUserProfile(data.userProfile);
+        return true;
+      } else {
+        alert('Failed to process resume: ' + (data.details || data.error));
+        return false;
+      }
+    } catch (error) {
+      console.error('Error processing resume text:', error);
+      alert('Failed to process resume text');
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const uploadResume = async () => {
@@ -247,13 +292,18 @@ export default function NewInterviewPage() {
       // Step 1: Resume processing
       if (useExistingResume && resumeSummary) {
         setCurrentStep(2);
-      } else if (selectedFile) {
+      } else if (uploadMethod === 'text' && resumeText.trim()) {
+        const success = await processResumeText();
+        if (success) {
+          setCurrentStep(2);
+        }
+      } else if (uploadMethod === 'file' && selectedFile) {
         const success = await uploadResume();
         if (success) {
           setCurrentStep(2);
         }
       } else {
-        alert('Please upload a resume or use your existing one');
+        alert('Please upload a resume, paste resume text, or use your existing one');
       }
     } else if (currentStep === 2) {
       // Step 2: Job processing
@@ -394,33 +444,69 @@ export default function NewInterviewPage() {
               )}
 
               {!useExistingResume && (
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                  <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Choose a file or drag it here
-                    </p>
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.txt"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                      id="resume-upload"
-                    />
+                <>
+                  <div className="flex justify-center gap-2 mb-4">
                     <Button
-                      variant="outline"
-                      onClick={triggerFileInput}
-                      className="cursor-pointer"
+                      variant={uploadMethod === 'file' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setUploadMethod('file')}
                     >
-                      Browse Files
+                      Upload File
+                    </Button>
+                    <Button
+                      variant={uploadMethod === 'text' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setUploadMethod('text')}
+                    >
+                      Paste Text
                     </Button>
                   </div>
-                  {selectedFile && (
-                    <p className="mt-2 text-sm text-green-600">
-                      Selected: {selectedFile.name}
-                    </p>
+
+                  {uploadMethod === 'file' ? (
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                      <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Choose a file or drag it here
+                        </p>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.txt"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          id="resume-upload"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={triggerFileInput}
+                          className="cursor-pointer"
+                        >
+                          Browse Files
+                        </Button>
+                      </div>
+                      {selectedFile && (
+                        <p className="mt-2 text-sm text-green-600">
+                          Selected: {selectedFile.name}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">
+                        Paste Your Resume Text
+                      </label>
+                      <textarea
+                        className="w-full min-h-[200px] px-3 py-2 border border-input rounded-md bg-background text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        placeholder="Paste your resume content here...\n\nInclude your experience, skills, education, etc."
+                        value={resumeText}
+                        onChange={(e) => setResumeText(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Tip: Copy and paste your resume text for quick processing
+                      </p>
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
               {/* {resumeSummary && (
@@ -584,7 +670,8 @@ export default function NewInterviewPage() {
                 onClick={handleNextStep}
                 disabled={
                   loading ||
-                  (currentStep === 1 && !useExistingResume && !selectedFile)
+                  (currentStep === 1 && !useExistingResume && uploadMethod === 'file' && !selectedFile) ||
+                  (currentStep === 1 && !useExistingResume && uploadMethod === 'text' && !resumeText.trim())
                 }
               >
                 {loading ? (
