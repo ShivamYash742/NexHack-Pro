@@ -64,7 +64,8 @@ async function generateUnifiedReport(
     // Validate and fix specificFeedback array
     if (parsedReport.detailedFeedback?.specificFeedback) {
       parsedReport.detailedFeedback.specificFeedback = parsedReport.detailedFeedback.specificFeedback.filter(
-        (item: any) => item.question && item.userResponse && item.feedback
+        (item: { question?: string; userResponse?: string; feedback?: string }) => 
+          item.question && item.userResponse && item.feedback
       );
     }
     
