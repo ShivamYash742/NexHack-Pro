@@ -56,12 +56,14 @@ ${conversationHistory?.map((msg: { sender: string; text: string }) => `${msg.sen
 
 CURRENT USER MESSAGE: ${message}
 
-Please respond as the AI interviewer. Keep your response:
+${message === '[USER_PAUSED]' ? 
+`The user has been silent for 5 seconds. As the AI interviewer, please gently check in with them, offer encouragement, or ask if they need you to repeat the last question. Keep it very short.` 
+: 
+`Please respond as the AI interviewer. Keep your response:
 - Professional and engaging
-- Relevant to the job role and candidate's background
 - Concise (1-2 sentences max since this is a short interview)
 - Natural and conversational
-- Focused on assessing the candidate's skills and experience
+- ALWAYS reply directly to what the user just said, and then ALWAYS ask a relevant follow-up question to keep the interview moving.`}
 
 Respond ONLY with your interviewer response, no additional formatting or labels.`;
 

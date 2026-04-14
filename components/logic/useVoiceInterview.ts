@@ -16,12 +16,14 @@ export const useVoiceInterview = () => {
     messages
   } = useVoiceInterviewContext();
 
-  const aiStateRef = useRef<{ kb: string, role: string, isProcessing: boolean }>({ kb: "", role: "", isProcessing: false });
+  const aiStateRef = useRef<{ kb: string, role: string, isProcessing: boolean, isPaused: boolean }>({ kb: "", role: "", isProcessing: false, isPaused: false });
 
   const handleUserSpeech = async (text: string) => {
     if (aiStateRef.current.isProcessing) return;
     
-    addMessage(MessageSender.CLIENT, text);
+    if (text !== "[USER_PAUSED]") {
+      addMessage(MessageSender.CLIENT, text);
+    }
     stopListening();
     
     aiStateRef.current.isProcessing = true;
@@ -59,11 +61,14 @@ export const useVoiceInterview = () => {
   };
 
   const { startListening, stopListening, interimTranscript, isSupported: isSttSupported, error: sttError, isListening } = useSpeechToText({
+    silenceTimeoutMs: 5000,
     onSilenceTimeout: (finalText) => {
-      // User finished speaking a chunk
+      // User finished speaking a chunk or stayed silent for 5 seconds
       if (!finalText.trim()) {
-        if (!aiStateRef.current.isProcessing) {
-          startListening(); // restart quietly if empty
+        if (!aiStateRef.current.isProcessing && !aiStateRef.current.isPaused && sessionState === VoiceSessionState.CONNECTED) {
+          handleUserSpeech("[USER_PAUSED]");
+        } else if (!aiStateRef.current.isProcessing && !aiStateRef.current.isPaused) {
+          startListening();
         }
         return;
       }
@@ -71,6 +76,18 @@ export const useVoiceInterview = () => {
       handleUserSpeech(finalText);
     }
   });
+
+  const togglePause = useCallback(() => {
+    if (sessionState === VoiceSessionState.PAUSED) {
+      setSessionState(VoiceSessionState.CONNECTED);
+      aiStateRef.current.isPaused = false;
+      startListening();
+    } else if (sessionState === VoiceSessionState.CONNECTED) {
+      setSessionState(VoiceSessionState.PAUSED);
+      aiStateRef.current.isPaused = true;
+      stopListening();
+    }
+  }, [sessionState, setSessionState, startListening, stopListening]);
 
   const { speak, stop: stopTts, isSupported: isTtsSupported } = useTextToSpeech();
 
@@ -124,6 +141,7 @@ export const useVoiceInterview = () => {
     start,
     stop,
     speakMessage,
+    togglePause,
     interimTranscript,
     sttError,
     isListening,
