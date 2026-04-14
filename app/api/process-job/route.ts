@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { generateWithFallback } from '@/lib/gemini';
+import { generateWithGroq } from '@/lib/groq';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate job summary using Gemini (with automatic model fallback)
+    // Generate job summary using Groq (with automatic model fallback)
     const jobPrompt = jobDescription
       ? `Please analyze this job posting and provide a concise summary (2-3 sentences) highlighting the key requirements, responsibilities, and what the ideal candidate should have:
 
@@ -27,7 +27,7 @@ Job Title: ${jobTitle}
 Job Description: ${jobDescription}`
       : `Please provide a brief summary (2-3 sentences) of typical requirements and responsibilities for a ${jobTitle} position.`;
 
-    const { text: jobSummary } = await generateWithFallback(jobPrompt);
+    const { text: jobSummary } = await generateWithGroq(jobPrompt);
 
     return NextResponse.json({
       success: true,

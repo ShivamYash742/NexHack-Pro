@@ -48,7 +48,7 @@ flowchart TD
 5. **Interview Session Starts** — An interview record is created in MongoDB. A highly-responsive vocal session initializes using the free Browser STT/TTS loops. **Groq AI** generates a contextual opening/welcome message internally which is read aloud via TTS.
 6. **Live Conversation** — The user speaks via microphone. **Web Speech API (STT)** transcribes user speech in real time for free with zero-delays. Transcriptions are sent to **Groq AI** to generate natural interviewer follow-up questions. The AI replies via local **Web Speech Synthesis (TTS)**. All messages, pauses, filler words, and timing metrics are synthesized entirely offline using the transcripts.
 7. **Session Ends** — Timer auto-exits at 3 minutes or user manually exits. Final conversation metrics (pause analysis, WPM, filler words, confidence score) are saved.
-8. **Report Generation** — The full transcript + behavioral metrics are sent to **Groq AI** with an extensive prompt for executive-level coaching analysis. A detailed report is generated with scores for Communication, Technical Knowledge, Problem Solving, Confidence, and more. 
+8. **Report Generation** — The full transcript + behavioral metrics are sent to **Gemini AI** with an extensive prompt for executive-level coaching analysis. A detailed report is generated with scores for Communication, Technical Knowledge, Problem Solving, Confidence, and more. 
 
 ---
 
@@ -59,11 +59,11 @@ flowchart TD
 | `MONGODB_URI` | [MongoDB Atlas](https://www.mongodb.com/atlas) | Stores user profiles, interviews, sessions, messages, metrics, and reports | ✅ Yes |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | [Clerk](https://clerk.com/) | User authentication (sign-in/sign-up) — client side | ✅ Yes |
 | `CLERK_SECRET_KEY` | [Clerk](https://clerk.com/) | User authentication — server side middleware | ✅ Yes |
-| `GROQ_API_KEY` | [Groq](https://groq.com/) | **Primary AI engine** — Powers resume summarization, job analysis, real-time interview conversation, and full report generation. Uses `llama-3.1-8b-instant` | ✅ Yes |
+| `GROQ_API_KEY` | [Groq](https://groq.com/) | **Primary AI engine** — Powers resume summarization, job analysis, real-time interview conversation. Uses `llama-3.1-8b-instant` | ✅ Yes |
+| `GEMINI_API_KEY` | [Google Gemini](https://aistudio.google.com/) | **Report Generation AI** — Powers full performance report generation and STAR method scoring | ✅ Yes |
 | `NEXT_PUBLIC_APPWRITE_ENDPOINT` | [Appwrite](https://appwrite.io/) | Cloud backend for file storage (resume uploads) | ✅ Yes |
 | `NEXT_PUBLIC_APPWRITE_PROJECT_ID` | Appwrite | Identifies your Appwrite project | ✅ Yes |
 | `NEXT_PUBLIC_BUCKET_ID` | Appwrite | Appwrite Storage bucket for resume files | ✅ Yes |
-| `GEMINI_API_KEY` | [Google Gemini](https://aistudio.google.com/) | Currently configured but **not actively used** in code routes — Groq handles all AI tasks | ❌ Optional |
 
 ### Which AI does what?
 
@@ -75,7 +75,8 @@ flowchart TD
 │                     │  Job description analysis                │
 │                     │  Real-time interview Q&A generation      │
 │                     │  Welcome message generation              │
-│                     │  Full performance report analysis        │
+├─────────────────────┼───────────────────────────────────────────┤
+│  Gemini (Flash)    │  Full performance report analysis        │
 │                     │  Per-question STAR method scoring         │
 ├─────────────────────┼───────────────────────────────────────────┤
 │  Browser Web Speech │  Speech-to-Text (STT): Real-time speech  │
@@ -119,7 +120,7 @@ python new.py                      # Opens webcam — press ESC to quit
 | **Authentication** | Clerk |
 | **Database** | MongoDB Atlas + Mongoose |
 | **File Storage** | Appwrite Cloud Storage |
-| **AI / LLM** | Groq (LLaMA 3.1 8B Instant) via Vercel AI SDK |
+| **AI / LLM** | Groq (LLaMA 3.1 8B Instant) for interviews & summaries, Gemini (Flash) for reports via Vercel AI SDK |
 | **Voice (TTS/STT)** | Native Browser Web Speech API |
 | **CV / Stress** | Python, OpenCV, MediaPipe |
 

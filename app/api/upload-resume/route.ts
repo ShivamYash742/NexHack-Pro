@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { storage, BUCKET_ID } from '@/lib/appwrite';
 import { ID } from 'appwrite';
-import { generateWithFallback } from '@/lib/gemini';
+import { generateWithGroq } from '@/lib/groq';
 import { parsePDF, truncateForAI } from '@/lib/pdf';
 import dbConnect from '@/lib/mongodb';
 import UserProfile from '@/lib/models/User';
@@ -62,8 +62,8 @@ export async function POST(req: NextRequest) {
     // Truncate file content to avoid API size limits
     const truncatedContent = truncateForAI(fileContent);
 
-    // Generate resume summary using Gemini (with automatic model fallback)
-    const { text: resumeSummary } = await generateWithFallback(
+    // Generate resume summary using Groq (with automatic model fallback)
+    const { text: resumeSummary } = await generateWithGroq(
       `Please analyze this resume and provide a concise summary (2-3 sentences) highlighting the candidate's key skills, experience, and qualifications:\n\n${truncatedContent}`
     );
 

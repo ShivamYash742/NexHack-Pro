@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateWithFallback } from '@/lib/gemini';
+import { generateWithGroq } from '@/lib/groq';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ Generate a professional, warm welcome message to start the interview. Keep it:
 
 Respond ONLY with your welcome message, no additional formatting.`;
 
-      const result = await generateWithFallback(welcomePrompt);
+      const result = await generateWithGroq(welcomePrompt);
 
       return NextResponse.json({
         success: true,
@@ -58,7 +58,7 @@ ${message === '[USER_PAUSED]' ?
 
 Respond ONLY with your interviewer response, no additional formatting or labels.`;
 
-    const result = await generateWithFallback(systemPrompt);
+    const result = await generateWithGroq(systemPrompt);
 
     return NextResponse.json({
       success: true,
