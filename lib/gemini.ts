@@ -59,12 +59,13 @@ export async function generateWithFallback(
       console.log(`[gemini] Success: ${modelName}`);
       return result;
 
-    } catch (e: any) {
-      const status = e.statusCode;
+    } catch (e: unknown) {
+      const error = e as { statusCode?: number; message?: string; name?: string };
+      const status = error.statusCode;
 
       console.warn(`[gemini] Failed: ${modelName}`, {
         status,
-        message: e.message,
+        message: error.message,
       });
 
       lastError = e;
@@ -76,7 +77,7 @@ export async function generateWithFallback(
       if (status === 429 || status === 503) continue;
 
       // Abort / timeout case
-      if (e.name === 'AbortError') continue;
+      if (error.name === 'AbortError') continue;
 
       // Everything else = real bug → stop immediately
       throw e;

@@ -14,7 +14,7 @@ export async function parsePDF(buffer: Buffer): Promise<string> {
           reject(new Error(`PDF parsing failed: ${errData.message}`));
         });
 
-        pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+        pdfParser.on('pdfParser_dataReady', (pdfData: { Pages?: Array<{ Texts?: Array<{ R?: Array<{ T?: string }> }> }> }) => {
           try {
             // Extract text from all pages
             let text = '';

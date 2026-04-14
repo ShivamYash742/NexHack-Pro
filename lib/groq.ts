@@ -44,17 +44,18 @@ export async function generateWithGroq(
       console.log(`[groq] Success: ${modelName}`);
       return result;
 
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const error = e as { statusCode?: number; message?: string; name?: string };
       console.warn(`[groq] Failed: ${modelName}`, {
-        status: e.statusCode,
-        message: e.message,
+        status: error.statusCode,
+        message: error.message,
       });
 
       lastError = e;
 
-      if (e.statusCode === 404) continue;
-      if (e.statusCode === 429 || e.statusCode === 503) continue;
-      if (e.name === 'AbortError') continue;
+      if (error.statusCode === 404) continue;
+      if (error.statusCode === 429 || error.statusCode === 503) continue;
+      if (error.name === 'AbortError') continue;
 
       throw e;
     }

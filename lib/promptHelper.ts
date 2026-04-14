@@ -1,6 +1,6 @@
 import prompts from './prompts.json';
 
-type PromptVariables = Record<string, string | number>;
+type PromptVariables = Record<string, string | number | boolean>;
 
 /**
  * Replace variables in a prompt template
