@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, ArrowRight } from 'lucide-react';
+import { CheckCircle, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Card } from '@/components/ui/card';
 
 interface InterviewCompleteProps {
   interviewId?: string;
@@ -25,13 +26,8 @@ const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sess
     try {
       const response = await fetch('/api/generate-report', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          interviewId,
-          sessionId,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interviewId, sessionId }),
       });
 
       const data = await response.json();
@@ -46,94 +42,89 @@ const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sess
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-      <div className="max-w-2xl w-full space-y-8">
-        {/* Success Icon and Title */}
-        <div
-          className={`text-center space-y-4 transition-all duration-1000 ${
-            showAnimation
-              ? 'translate-y-0 opacity-100'
-              : 'translate-y-10 opacity-0'
-          }`}
-        >
-          <div className="flex justify-center">
-            <div className="p-4 rounded-full bg-green-100 dark:bg-green-900">
-              <CheckCircle className="w-16 h-16 text-green-600 dark:text-green-400" />
+    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-secondary/20 relative overflow-hidden">
+      {/* Decorative background blobs */}
+      <div className="absolute top-0 -left-64 w-96 h-96 bg-primary/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" />
+      <div className="absolute top-0 -right-64 w-96 h-96 bg-purple-500/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000" />
+      <div className="absolute -bottom-64 left-1/2 w-96 h-96 bg-green-500/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000" />
+
+      <Card className="max-w-xl w-full border border-border/50 bg-background/60 backdrop-blur-xl shadow-2xl relative z-10">
+        <div className="p-8 sm:p-12 space-y-10">
+          
+          {/* Success Icon and Title */}
+          <div
+            className={`text-center space-y-6 transition-all duration-1000 ease-out transform ${
+              showAnimation ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-10 opacity-0 scale-95'
+            }`}
+          >
+            <div className="flex justify-center relative">
+               <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full" />
+               <div className="p-5 rounded-full bg-gradient-to-br from-green-400 to-green-600 relative z-10 shadow-lg shadow-green-500/30">
+                 <CheckCircle className="w-12 h-12 text-white" strokeWidth={2.5} />
+               </div>
+            </div>
+
+            <div className="space-y-3">
+              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                Mission Accomplished
+              </h1>
+              <p className="text-lg text-muted-foreground max-w-md mx-auto leading-relaxed">
+                You&apos;ve successfully completed your mock interview. The data has been captured and is ready for analysis.
+              </p>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-foreground">
-              Interview Completed!
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Great job! You&apos;ve successfully completed your mock interview.
-            </p>
-          </div>
-        </div>
-
-        {/* Email Notification */}
-        <div
-          className={`text-center transition-all duration-1000 delay-300 ${
-            showAnimation
-              ? 'translate-y-0 opacity-100'
-              : 'translate-y-10 opacity-0'
-          }`}
-        >
-          <p className="text-muted-foreground">
-            You will receive detailed feedback on your email soon
-          </p>
-        </div>
-
-        {/* Action Buttons */}
-        <div
-          className={`flex flex-col sm:flex-row justify-center gap-4 transition-all duration-1000 delay-500 ${
-            showAnimation
-              ? 'translate-y-0 opacity-100'
-              : 'translate-y-10 opacity-0'
-          }`}
-        >
-          {!reportGenerated && interviewId && sessionId && (
-            <Button 
-              size="lg" 
-              onClick={generateReport}
-              disabled={generatingReport}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {generatingReport ? 'Generating Report...' : 'Generate Detailed Report'}
-            </Button>
-          )}
-          
-          {reportGenerated && (
-            <Button size="lg" asChild className="bg-green-600 hover:bg-green-700">
-              <Link href={`/report/${interviewId}`}>
-                View Report
-                <ArrowRight className="ml-2 w-4 h-4" />
+          {/* Action Buttons */}
+          <div
+            className={`flex flex-col sm:flex-row justify-center items-center gap-4 transition-all duration-1000 delay-300 ease-out transform ${
+              showAnimation ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
+            }`}
+          >
+            {!reportGenerated && interviewId && sessionId && (
+              <Button 
+                size="lg" 
+                onClick={generateReport}
+                disabled={generatingReport}
+                className="w-full sm:w-auto h-14 px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-500/25 transition-all active:scale-95 group relative overflow-hidden"
+              >
+                {generatingReport ? (
+                  <>
+                     <Loader2 className="mr-3 w-5 h-5 animate-spin" />
+                     Synthesizing Insights...
+                  </>
+                ) : (
+                  <>
+                     <Sparkles className="mr-3 w-5 h-5 group-hover:animate-pulse" />
+                     Generate Detailed Report
+                  </>
+                )}
+                {/* Shine effect inside button */}
+                <div className="absolute inset-0 -translate-x-[150%] bg-white/20 skew-x-[-20deg] group-hover:animate-[shine_1.5s_ease-out]" />
+              </Button>
+            )}
+            
+            {reportGenerated && (
+              <Button 
+                size="lg" 
+                asChild 
+                className="w-full sm:w-auto h-14 px-8 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-xl shadow-emerald-500/25 transition-all active:scale-95 group"
+              >
+                <Link href={`/report/${interviewId}`}>
+                  View Intelligence Report
+                  <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </Button>
+            )}
+            
+            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto h-14 px-8 border-border/60 hover:bg-muted/50 backdrop-blur-sm transition-all active:scale-95">
+              <Link href="/interview/new">
+                Back to Dashboard
               </Link>
             </Button>
-          )}
-          
-          <Button size="lg" variant="outline" asChild>
-            <Link href="/interview/new">
-              Take New Interview
-              <ArrowRight className="ml-2 w-4 h-4" />
-            </Link>
-          </Button>
-        </div>
+          </div>
 
-        {/* Motivational Message */}
-        <div
-          className={`text-center transition-all duration-1000 delay-700 ${
-            showAnimation
-              ? 'translate-y-0 opacity-100'
-              : 'translate-y-10 opacity-0'
-          }`}
-        >
-          <p className="text-sm text-muted-foreground italic">
-            &quot;Success is where preparation and opportunity meets.&quot;
-          </p>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

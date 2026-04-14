@@ -10,6 +10,7 @@ import Interview from '@/components/interview';
 import LoadingSkeleton from '@/components/loading-skeleton';
 import InterviewComplete from '@/components/interview-complete';
 import Link from 'next/link';
+import { getMentorById } from '@/components/mentors';
 
 interface Interview {
   _id: string;
@@ -209,12 +210,17 @@ export default function InterviewPage() {
 }
 
 const getKnowledgeBase = (interview: Interview) => {
+  const mentor = getMentorById(interview.mentorId);
+  const basePersonality = mentor?.personality || 'You are an AI-powered interviewer conducting a mock interview for a specific job position.';
+
   return `
-  You are an AI-powered interviewer conducting a mock interview for a specific job position. The candidate is described as follows: ${interview.userSummary}. 
+  ${basePersonality}
+  
+  The candidate is described as follows: ${interview.userSummary}. 
 
   The job role is described as follows: ${interview.jobSummary}.
 
-  Your task is to conduct a professional mock interview for this position. This is a 3-minute mock interview, so you should ask 2-3 concise but relevant questions to assess the candidate's technical skills, experience, and fit for the role. Tailor the questions to the candidate's background and the job's requirements. Ensure the questions are clear, concise, and encourage detailed responses about their expertise and problem-solving abilities. Maintain a professional and engaging tone throughout the interview. Keep track of time and make sure to provide valuable feedback within the 3-minute timeframe.
+  Your task is to conduct a professional mock interview for this position. This is a short 3-minute mock interview, so you should ask 2-3 concise but highly relevant questions to assess the candidate. Tailor the questions to the candidate's background and the job's requirements, specifically looking through the lens of your assigned mentor personality. Ensure the questions are clear, concise, and encourage detailed responses. Maintain a conversational and engaging tone throughout the interview matching your persona. Keep track of time and make sure to provide valuable feedback within the 3-minute timeframe.
 
   IMPORTANT CONVERSATION FLOW:
   - After asking each question, pause and give the candidate time to think and respond

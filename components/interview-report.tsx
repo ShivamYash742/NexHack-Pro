@@ -11,13 +11,13 @@ import {
   CheckCircle,
   ArrowRight,
   BarChart3,
-  User,
   Calendar,
+  MessageSquareQuote,
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 
 import Link from 'next/link';
@@ -110,12 +110,22 @@ const InterviewReport: React.FC<InterviewReportProps> = ({ interviewId, onBack }
     fetchReport();
   }, [fetchReport]);
 
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-emerald-500';
+    if (score >= 60) return 'text-amber-500';
+    return 'text-rose-500';
+  };
 
+  const getScoreBg = (score: number) => {
+    if (score >= 80) return 'bg-emerald-500/10 border-emerald-500/20';
+    if (score >= 60) return 'bg-amber-500/10 border-amber-500/20';
+    return 'bg-rose-500/10 border-rose-500/20';
+  };
 
-  const getScoreBadgeVariant = (score: number) => {
-    if (score >= 80) return 'default';
-    if (score >= 60) return 'secondary';
-    return 'destructive';
+  const getProgressColor = (score: number) => {
+    if (score >= 80) return 'bg-emerald-500';
+    if (score >= 60) return 'bg-amber-500';
+    return 'bg-rose-500';
   };
 
   const formatDuration = (milliseconds: number) => {
@@ -126,10 +136,16 @@ const InterviewReport: React.FC<InterviewReportProps> = ({ interviewId, onBack }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading your interview report...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center space-y-6">
+          <div className="relative w-20 h-20">
+            <div className="absolute inset-0 border-t-2 border-primary border-solid rounded-full animate-spin"></div>
+            <div className="absolute inset-2 border-r-2 border-blue-500 border-solid rounded-full animate-spin direction-reverse"></div>
+            <div className="absolute inset-4 border-b-2 border-purple-500 border-solid rounded-full animate-spin"></div>
+          </div>
+          <p className="text-xl font-medium text-muted-foreground animate-pulse tracking-wide">
+            Decrypting Candidate Data...
+          </p>
         </div>
       </div>
     );
@@ -137,297 +153,319 @@ const InterviewReport: React.FC<InterviewReportProps> = ({ interviewId, onBack }
 
   if (error || !report) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
-          <h2 className="text-xl font-semibold">Report Not Available</h2>
-          <p className="text-muted-foreground">{error || 'Report not found'}</p>
-          <Button onClick={onBack || (() => window.history.back())}>
-            Go Back
-          </Button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <Card className="max-w-md w-full border-border/50 bg-background/50 backdrop-blur-sm text-center">
+          <CardContent className="pt-8 pb-8 space-y-4">
+            <AlertCircle className="h-16 w-16 text-rose-500 mx-auto opacity-80" />
+            <h2 className="text-2xl font-bold tracking-tight">Report Unavailable</h2>
+            <p className="text-muted-foreground">{error || 'Report not found'}</p>
+            <Button onClick={onBack || (() => window.history.back())} className="mt-4 w-full">
+              Go Back
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold">Interview Report</h1>
-            <p className="text-muted-foreground">
-              Detailed analysis of your {report.jobTitle} interview
+    <div className="min-h-screen bg-[#0a0a0a] text-slate-200 selection:bg-primary/30">
+      
+      {/* Dynamic Header Background */}
+      <div className="absolute top-0 inset-x-0 h-96 bg-gradient-to-b from-primary/10 via-background to-transparent pointer-events-none" />
+      
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 relative z-10 pt-12">
+        
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/40">
+          <div className="space-y-3">
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 backdrop-blur-sm px-3 py-1 text-xs">
+              AI Intelligence Report
+            </Badge>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-100">
+              {report.jobTitle}
+            </h1>
+            <p className="text-lg text-slate-400 font-medium">
+              Evaluated by <span className="text-slate-200">{report.mentorName}</span>
             </p>
           </div>
-          <div className="flex items-center space-x-2">
-
+          
+          <div className="flex items-center space-x-6">
+            <div className={`p-4 rounded-2xl border backdrop-blur-xl flex flex-col items-center justify-center ${getScoreBg(report.detailedFeedback.overallScore)}`}>
+              <span className="text-sm font-semibold uppercase tracking-wider opacity-80 mb-1">Global Score</span>
+              <div className="flex items-baseline space-x-1">
+                <span className={`text-4xl font-black ${getScoreColor(report.detailedFeedback.overallScore)}`}>
+                  {report.detailedFeedback.overallScore}
+                </span>
+                <span className="text-xl font-medium opacity-50">/100</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Interview Info */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="flex items-center space-x-2">
-                <User className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Interviewer</p>
-                  <p className="font-medium">{report.mentorName}</p>
+        {/* Global Overview Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+             { icon: Clock, label: "Session Duration", value: formatDuration(report.interviewDuration) },
+             { icon: Calendar, label: "Date Evaluated", value: new Date(report.generatedAt).toLocaleDateString() },
+             { icon: Award, label: "Recommendation", value: report.detailedFeedback.overallScore >= 75 ? "Strong Candidate" : "Needs Growth" },
+             { icon: Target, label: "Core Assessment", value: "Fortune-500 Standard" }
+          ].map((item, i) => (
+            <Card key={i} className="bg-background/40 border-border/30 backdrop-blur-md">
+              <CardContent className="p-5 flex items-center space-x-4">
+                <div className="p-3 bg-primary/10 rounded-xl text-primary">
+                  <item.icon className="w-5 h-5" />
                 </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Clock className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Duration</p>
-                  <p className="font-medium">{formatDuration(report.interviewDuration)}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{item.label}</p>
+                  <p className="text-base font-medium text-slate-200 mt-0.5">{item.value}</p>
                 </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Date</p>
-                  <p className="font-medium">
-                    {new Date(report.generatedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <BarChart3 className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Overall Score</p>
-                  <Badge 
-                    variant={getScoreBadgeVariant(report.detailedFeedback.overallScore)}
-                    className="font-bold"
-                  >
-                    {report.detailedFeedback.overallScore}/100
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-        {/* Overall Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Award className="w-5 h-5" />
-              <span>Performance Summary</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground leading-relaxed">
-              {report.detailedFeedback.summary}
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Executive Summary & Strengths */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2 bg-gradient-to-br from-background via-background to-slate-900/50 border-border/40 shadow-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-xl">
+                <Brain className="w-5 h-5 text-primary" />
+                <span>Executive Summary</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-slate-300 text-lg leading-relaxed font-light">
+                {report.detailedFeedback.summary}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-background/60 border-border/40 backdrop-blur-sm shadow-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center space-x-2">
+                <Target className="w-5 h-5 text-blue-400" />
+                <span>Critical Assessment</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <div>
-                <h4 className="font-semibold text-green-700 mb-2 flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Key Strengths
+                <h4 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-3 flex items-center">
+                  <CheckCircle className="w-4 h-4 mr-2" /> Key Strengths
                 </h4>
-                <ul className="space-y-1">
+                <ul className="space-y-2">
                   {report.detailedFeedback.keyStrengths.map((strength, index) => (
-                    <li key={index} className="text-sm text-muted-foreground flex items-start">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2 mr-2 flex-shrink-0"></span>
-                      {strength}
+                    <li key={index} className="text-sm text-slate-300 flex items-start">
+                      <span className="mr-2 text-emerald-500">•</span>
+                      <span className="leading-tight">{strength}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-              
+              <Separator className="bg-border/30" />
               <div>
-                <h4 className="font-semibold text-orange-700 mb-2 flex items-center">
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Areas for Improvement
+                <h4 className="text-sm font-semibold text-amber-500 uppercase tracking-wider mb-3 flex items-center">
+                  <TrendingUp className="w-4 h-4 mr-2" /> Priority Growth Areas
                 </h4>
-                <ul className="space-y-1">
+                <ul className="space-y-2">
                   {report.detailedFeedback.areasForImprovement.map((area, index) => (
-                    <li key={index} className="text-sm text-muted-foreground flex items-start">
-                      <span className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-2 mr-2 flex-shrink-0"></span>
-                      {area}
+                    <li key={index} className="text-sm text-slate-300 flex items-start">
+                      <span className="mr-2 text-amber-500">•</span>
+                      <span className="leading-tight">{area}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
-          </CardContent>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Competency Spider/Bars */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center">
+            <BarChart3 className="w-6 h-6 mr-3 text-primary" />
+            Competency Breakdown
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[
+              { id: 'tech', title: "Technical Knowledge", data: report.performanceAnalysis.technicalKnowledge },
+              { id: 'comm', title: "Communication Skills", data: report.performanceAnalysis.communicationSkills },
+              { id: 'prob', title: "Problem Solving", data: report.performanceAnalysis.problemSolving },
+              { id: 'conf', title: "Confidence & Presence", data: report.performanceAnalysis.confidence }
+            ].map((metric) => (
+              <Card key={metric.id} className="bg-background/40 border-border/30 group hover:bg-background/60 transition-colors">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-end mb-4">
+                    <h4 className="font-semibold text-lg text-slate-200">{metric.title}</h4>
+                    <span className={`text-2xl font-black ${getScoreColor(metric.data.score)}`}>
+                      {metric.data.score}
+                    </span>
+                  </div>
+                  {/* Custom Progress styling via manual inline styles to inject color easily */}
+                  <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden mb-4">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-1000 ${getProgressColor(metric.data.score)}`}
+                      style={{ width: `${metric.data.score}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-slate-400 leading-relaxed font-light">
+                    {metric.id === 'conf' ? (metric.data as unknown as { analysis: string }).analysis : (metric.data as unknown as { feedback: string }).feedback}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Behavioral Neuro-Insights */}
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background relative overflow-hidden">
+           <div className="absolute top-0 right-0 p-8 opacity-5">
+             <Brain className="w-64 h-64" />
+           </div>
+           <CardHeader>
+             <CardTitle className="text-xl flex items-center space-x-2 relative z-10 text-primary">
+               <Brain className="w-5 h-5" />
+               <span>Behavioral & Cognitive Profile</span>
+             </CardTitle>
+           </CardHeader>
+           <CardContent className="relative z-10">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+               <div className="space-y-2">
+                 <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Cognitive Pacing</h4>
+                 <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                   {report.detailedFeedback.behavioralInsights.speechPaceAnalysis}
+                 </p>
+               </div>
+               <div className="space-y-2">
+                 <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Processing Speed</h4>
+                 <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                   {report.detailedFeedback.behavioralInsights.pauseAnalysis}
+                 </p>
+               </div>
+               <div className="space-y-2">
+                 <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Emotional Control</h4>
+                 <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                   {report.detailedFeedback.behavioralInsights.emotionalStateAnalysis}
+                 </p>
+               </div>
+               <div className="space-y-2">
+                 <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Authentic Presence</h4>
+                 <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                   {report.detailedFeedback.behavioralInsights.confidenceAnalysis}
+                 </p>
+               </div>
+             </div>
+           </CardContent>
         </Card>
 
-        {/* Performance Analysis */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <BarChart3 className="w-5 h-5" />
-              <span>Performance Analysis</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Communication Skills */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Communication Skills</h4>
-                <Badge variant={getScoreBadgeVariant(report.performanceAnalysis.communicationSkills.score)}>
-                  {report.performanceAnalysis.communicationSkills.score}/100
-                </Badge>
-              </div>
-              <Progress value={report.performanceAnalysis.communicationSkills.score} className="h-2" />
-              <p className="text-sm text-muted-foreground">
-                {report.performanceAnalysis.communicationSkills.feedback}
-              </p>
+        {/* Q&A Transcripts & Feedback Analysis */}
+        {report.detailedFeedback.specificFeedback && report.detailedFeedback.specificFeedback.length > 0 && (
+          <div className="space-y-6 pt-10">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center">
+              <MessageSquareQuote className="w-6 h-6 mr-3 text-primary" />
+              Q&A Specific Analysis
+            </h2>
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              {report.detailedFeedback.specificFeedback.map((qa, index) => (
+                <div key={qa.questionId} className="group relative">
+                  <div className="absolute -inset-y-4 -inset-x-6 z-0 scale-95 opacity-0 transition group-hover:scale-100 group-hover:opacity-100 bg-slate-800/20 rounded-2xl" />
+                  <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6">
+                    {/* Q&A Column */}
+                    <div className="md:col-span-8 space-y-4">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-1 border border-primary/30">
+                          <span className="text-primary font-bold text-sm">Q{index + 1}</span>
+                        </div>
+                        <p className="text-lg font-medium text-slate-200 leading-relaxed">{qa.question}</p>
+                      </div>
+                      <div className="flex items-start space-x-4 pl-12">
+                        <div className="relative w-full">
+                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-border rounded-full" />
+                           <p className="text-base text-slate-400 leading-relaxed font-light italic pl-5 py-1">
+                             &quot;{qa.userResponse}&quot;
+                           </p>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Feedback Column */}
+                    <div className="md:col-span-4 bg-slate-900/50 rounded-xl p-5 border border-border/40 shadow-inner">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Score</span>
+                        <span className={`text-lg font-black ${getScoreColor(qa.score)}`}>{qa.score}/100</span>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed mb-4">
+                        {qa.feedback}
+                      </p>
+                      {qa.suggestions && qa.suggestions.length > 0 && (
+                        <div className="space-y-2">
+                          <span className="text-xs font-semibold uppercase tracking-widest text-primary">Suggestions</span>
+                          <ul className="space-y-1">
+                            {qa.suggestions.map((sug, idx) => (
+                              <li key={idx} className="text-xs text-slate-400 flex items-start">
+                                <ArrowRight className="w-3 h-3 mt-0.5 mr-1.5 flex-shrink-0 text-primary opacity-70" />
+                                <span>{sug}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {index < report.detailedFeedback.specificFeedback.length - 1 && (
+                    <Separator className="my-8 bg-border/40 relative z-10" />
+                  )}
+                </div>
+              ))}
             </div>
+          </div>
+        )}
 
-            <Separator />
-
-            {/* Technical Knowledge */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Technical Knowledge</h4>
-                <Badge variant={getScoreBadgeVariant(report.performanceAnalysis.technicalKnowledge.score)}>
-                  {report.performanceAnalysis.technicalKnowledge.score}/100
-                </Badge>
-              </div>
-              <Progress value={report.performanceAnalysis.technicalKnowledge.score} className="h-2" />
-              <p className="text-sm text-muted-foreground">
-                {report.performanceAnalysis.technicalKnowledge.feedback}
-              </p>
-            </div>
-
-            <Separator />
-
-            {/* Problem Solving */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Problem Solving</h4>
-                <Badge variant={getScoreBadgeVariant(report.performanceAnalysis.problemSolving.score)}>
-                  {report.performanceAnalysis.problemSolving.score}/100
-                </Badge>
-              </div>
-              <Progress value={report.performanceAnalysis.problemSolving.score} className="h-2" />
-              <p className="text-sm text-muted-foreground">
-                {report.performanceAnalysis.problemSolving.feedback}
-              </p>
-            </div>
-
-            <Separator />
-
-            {/* Confidence */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Confidence</h4>
-                <Badge variant={getScoreBadgeVariant(report.performanceAnalysis.confidence.score)}>
-                  {report.performanceAnalysis.confidence.score}/100
-                </Badge>
-              </div>
-              <Progress value={report.performanceAnalysis.confidence.score} className="h-2" />
-              <p className="text-sm text-muted-foreground">
-                {report.performanceAnalysis.confidence.analysis}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Behavioral Insights */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Brain className="w-5 h-5" />
-              <span>Behavioral Insights</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Pause Analysis</h4>
-                <p className="text-sm text-muted-foreground">
-                  {report.detailedFeedback.behavioralInsights.pauseAnalysis}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Speech Pace</h4>
-                <p className="text-sm text-muted-foreground">
-                  {report.detailedFeedback.behavioralInsights.speechPaceAnalysis}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Confidence Analysis</h4>
-                <p className="text-sm text-muted-foreground">
-                  {report.detailedFeedback.behavioralInsights.confidenceAnalysis}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Emotional State</h4>
-                <p className="text-sm text-muted-foreground">
-                  {report.detailedFeedback.behavioralInsights.emotionalStateAnalysis}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recommendations */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Target className="w-5 h-5" />
-              <span>Recommendations</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <h4 className="font-semibold text-blue-700 mb-3">Immediate Actions</h4>
-                <ul className="space-y-2">
-                  {report.detailedFeedback.recommendations.immediate.map((rec, index) => (
-                    <li key={index} className="text-sm text-muted-foreground flex items-start">
-                      <ArrowRight className="w-3 h-3 mt-1 mr-2 text-blue-500 flex-shrink-0" />
-                      {rec}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-orange-700 mb-3">Short-term Goals</h4>
-                <ul className="space-y-2">
-                  {report.detailedFeedback.recommendations.shortTerm.map((rec, index) => (
-                    <li key={index} className="text-sm text-muted-foreground flex items-start">
-                      <ArrowRight className="w-3 h-3 mt-1 mr-2 text-orange-500 flex-shrink-0" />
-                      {rec}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-green-700 mb-3">Long-term Development</h4>
-                <ul className="space-y-2">
-                  {report.detailedFeedback.recommendations.longTerm.map((rec, index) => (
-                    <li key={index} className="text-sm text-muted-foreground flex items-start">
-                      <ArrowRight className="w-3 h-3 mt-1 mr-2 text-green-500 flex-shrink-0" />
-                      {rec}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tactical Development Plan */}
+        <div className="pt-10">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center mb-6">
+            <Star className="w-6 h-6 mr-3 text-amber-500" />
+            Tactical Development Plan
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { title: "Immediate Tactics", items: report.detailedFeedback.recommendations.immediate, color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20" },
+              { title: "Short-Term Milestones", items: report.detailedFeedback.recommendations.shortTerm, color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
+              { title: "Long-Term Trajectory", items: report.detailedFeedback.recommendations.longTerm, color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" }
+            ].map((plan, i) => (
+              <Card key={i} className={`bg-background/40 backdrop-blur-md border ${plan.border}`}>
+                <CardHeader className={`pb-4 border-b ${plan.border} ${plan.bg}`}>
+                  <CardTitle className={`text-base font-bold ${plan.color}`}>
+                    {plan.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-5 flex-grow">
+                  <ul className="space-y-4">
+                    {plan.items.map((rec, index) => (
+                      <li key={index} className="text-sm text-slate-300 flex items-start leading-relaxed">
+                        <span className={`w-1.5 h-1.5 rounded-full mt-1.5 mr-3 flex-shrink-0 bg-current ${plan.color}`} />
+                        {rec}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-center space-x-4 pt-6">
-          <Button size="lg" asChild>
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-12 pb-16">
+          <Button size="lg" asChild className="h-14 px-8 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-95 group w-full sm:w-auto">
             <Link href="/interview/new">
-              Take Another Interview
-              <ArrowRight className="w-4 h-4 ml-2" />
+              Start Next Assessment
+              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Link>
           </Button>
-          <Button variant="outline" size="lg" onClick={onBack || (() => window.history.back())}>
+          <Button variant="outline" size="lg" onClick={onBack || (() => window.history.back())} className="h-14 px-8 border-border/60 hover:bg-muted/50 backdrop-blur-sm transition-all active:scale-95 w-full sm:w-auto">
             Back to Dashboard
           </Button>
         </div>
+
       </div>
     </div>
   );

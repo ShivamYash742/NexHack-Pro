@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate job summary using Groq
+    // Generate job summary using Gemini
     const jobPrompt = jobDescription
       ? `Please analyze this job posting and provide a concise summary (2-3 sentences) highlighting the key requirements, responsibilities, and what the ideal candidate should have:
 

@@ -137,7 +137,7 @@ export default function NewInterviewPage() {
         try {
           const errorData = JSON.parse(errorText);
           throw new Error(errorData.details || errorData.error || errorText);
-        } catch (parseError) {
+        } catch {
           throw new Error(`Server error: ${response.status} - ${errorText}`);
         }
       }
