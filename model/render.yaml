@@ -1,21 +1,10 @@
 services:
   - type: web
     name: mockmentor-ml-sidecar
-    runtime: python
+    runtime: docker
     rootDir: model
-    buildCommand: >-
-      apt-get install -y --no-install-recommends
-      libgles2 libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 &&
-      pip install -r requirements.txt
-    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: ML_ALLOWED_ORIGIN
         value: "*"
-      # Force Mesa software renderer — Render free tier has no GPU
-      - key: LIBGL_ALWAYS_SOFTWARE
-        value: "1"
-      - key: MESA_GL_VERSION_OVERRIDE
-        value: "3.3"
-      - key: EGL_PLATFORM
-        value: surfaceless
     plan: free
