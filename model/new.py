@@ -1,33 +1,38 @@
+"""
+Debug runner — local OpenCV window showing all tracker signals.
+Does NOT run in production. Press ESC to quit.
+
+Usage: python new.py
+"""
+import os
+import sys
+import time
+import urllib.request
+
 import cv2
 import numpy as np
-import time
-import os
-import urllib.request
-from collections import deque
 import mediapipe as mp
 
-# ============================================================
-# MediaPipe Tasks API (for mediapipe >= 0.10.14)
-# ============================================================
-BaseOptions = mp.tasks.BaseOptions
-FaceLandmarker = mp.tasks.vision.FaceLandmarker
-FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
-HandLandmarker = mp.tasks.vision.HandLandmarker
-HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
-PoseLandmarker = mp.tasks.vision.PoseLandmarker
-PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
-VisionRunningMode = mp.tasks.vision.RunningMode
+# ── ensure model/ is importable ─────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# ============================================================
-# Download model files if not present
-# ============================================================
+# ── download model files if absent ──────────────────────────────────────────
 MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 MODELS = {
-    "face_landmarker.task": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-    "hand_landmarker.task": "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-    "pose_landmarker_lite.task": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+    "face_landmarker.task": (
+        "https://storage.googleapis.com/mediapipe-models/face_landmarker/"
+        "face_landmarker/float16/1/face_landmarker.task"
+    ),
+    "hand_landmarker.task": (
+        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
+        "hand_landmarker/float16/1/hand_landmarker.task"
+    ),
+    "pose_landmarker_lite.task": (
+        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
+        "pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+    ),
 }
 
 for name, url in MODELS.items():
@@ -35,153 +40,276 @@ for name, url in MODELS.items():
     if not os.path.exists(path):
         print(f"Downloading {name}...")
         urllib.request.urlretrieve(url, path)
-        print(f"Downloaded {name}")
+        print(f"  ✓ {name}")
 
-# ============================================================
-# Drawing connections (for manual landmark rendering)
-# ============================================================
+# ── import tracker package (after models exist) ──────────────────────────────
+from tracker import Pipeline
+from tracker.face import LEFT_EYE, RIGHT_EYE
+
 HAND_CONNECTIONS = [
-    (0, 1), (1, 2), (2, 3), (3, 4),
-    (0, 5), (5, 6), (6, 7), (7, 8),
-    (5, 9), (9, 10), (10, 11), (11, 12),
-    (9, 13), (13, 14), (14, 15), (15, 16),
-    (13, 17), (0, 17), (17, 18), (18, 19), (19, 20),
+    (0,1),(1,2),(2,3),(3,4),(0,5),(5,6),(6,7),(7,8),
+    (5,9),(9,10),(10,11),(11,12),(9,13),(13,14),(14,15),(15,16),
+    (13,17),(0,17),(17,18),(18,19),(19,20),
 ]
-
 POSE_CONNECTIONS = [
-    (0, 1), (1, 2), (2, 3), (3, 7), (0, 4), (4, 5), (5, 6), (6, 8),
-    (9, 10), (11, 12), (11, 13), (13, 15), (15, 17), (15, 19), (15, 21),
-    (17, 19), (12, 14), (14, 16), (16, 18), (16, 20), (16, 22), (18, 20),
-    (11, 23), (12, 24), (23, 24), (23, 25), (24, 26), (25, 27), (26, 28),
-    (27, 29), (28, 30), (29, 31), (30, 32),
+    (0,1),(1,2),(2,3),(3,7),(0,4),(4,5),(5,6),(6,8),(9,10),
+    (11,12),(11,13),(13,15),(15,17),(15,19),(15,21),(17,19),
+    (12,14),(14,16),(16,18),(16,20),(16,22),(18,20),
+    (11,23),(12,24),(23,24),(23,25),(24,26),(25,27),(26,28),
+    (27,29),(28,30),(29,31),(30,32),
 ]
 
-# ============================================================
-# Settings
-# ============================================================
-EYE_THRESHOLD = 0.22
-CALIBRATION_FRAMES = 80
-SMOOTHING = 5
 
-
-# ============================================================
-# State variables
-# ============================================================
-blink_counter = 0
-start_time = time.time()
-EYE_CLOSED = False
-
-prev_left_hand = None
-prev_right_hand = None
-
-baseline_ear = None
-baseline_movement = None
-frame_count = 0
-
-movement_history = deque(maxlen=SMOOTHING)
-ear_history = deque(maxlen=SMOOTHING)
-
-# ============================================================
-# Helper functions
-# ============================================================
-def safe_distance(a, b):
-    return np.linalg.norm(np.array(a) - np.array(b)) + 1e-6
-
-
-# Eye landmark indices (same as the 478 face mesh model)
-LEFT_EYE = [33, 160, 158, 133, 153, 144]
-RIGHT_EYE = [263, 387, 385, 362, 380, 373]
-
-
-def eye_aspect_ratio(landmarks, eye_indices):
-    """Calculate eye aspect ratio from face landmarks list."""
-    try:
-        p1 = [landmarks[eye_indices[0]].x, landmarks[eye_indices[0]].y]
-        p2 = [landmarks[eye_indices[1]].x, landmarks[eye_indices[1]].y]
-        p3 = [landmarks[eye_indices[2]].x, landmarks[eye_indices[2]].y]
-        p4 = [landmarks[eye_indices[3]].x, landmarks[eye_indices[3]].y]
-        p5 = [landmarks[eye_indices[4]].x, landmarks[eye_indices[4]].y]
-        p6 = [landmarks[eye_indices[5]].x, landmarks[eye_indices[5]].y]
-
-        
-
-
-        vertical = safe_distance(p2, p6) + safe_distance(p3, p5)
-        horizontal = safe_distance(p1, p4)
-        return vertical / (2.0 * horizontal)
-    except Exception:
-        return 0.3
-
-
-def get_hand_center(landmarks):
-    """Get the centroid of hand landmarks."""
-    xs = [lm.x for lm in landmarks]
-    ys = [lm.y for lm in landmarks]
-    return np.mean(xs), np.mean(ys)
-
-
-def draw_landmarks_on_frame(frame, landmarks, connections=None,
-                             color=(0, 255, 0), thickness=1, circle_radius=1):
-    """Draw landmarks and optional connections on a frame."""
+def draw_lms(frame, landmarks, connections=None, color=(0,255,0), r=1, t=1):
     h, w = frame.shape[:2]
-    points = []
-    for lm in landmarks:
-        x, y = int(lm.x * w), int(lm.y * h)
-        points.append((x, y))
-        cv2.circle(frame, (x, y), circle_radius, color, -1)
+    pts = [(int(lm.x*w), int(lm.y*h)) for lm in landmarks]
+    for p in pts:
+        cv2.circle(frame, p, r, color, -1)
     if connections:
-        for start_idx, end_idx in connections:
-            if start_idx < len(points) and end_idx < len(points):
-                cv2.line(frame, points[start_idx], points[end_idx], color, thickness)
+        for s, e in connections:
+            if s < len(pts) and e < len(pts):
+                cv2.line(frame, pts[s], pts[e], color, t)
 
 
-# ============================================================
-# Create MediaPipe landmarker instances (VIDEO mode)
-# ============================================================
-face_options = FaceLandmarkerOptions(
-    base_options=BaseOptions(
-        model_asset_path=os.path.join(MODEL_DIR, "face_landmarker.task")
-    ),
-    running_mode=VisionRunningMode.VIDEO,
-    num_faces=1,
-    min_face_detection_confidence=0.5,
-    min_tracking_confidence=0.5,
+def stress_color(s: float):
+    """Green → orange → red based on stress 0-10."""
+    if s < 4:
+        return (0, 200, 0)
+    if s < 7:
+        return (0, 165, 255)
+    return (0, 0, 220)
+
+
+def draw_hud(frame, result, calibrating: bool):
+    h, w = frame.shape[:2]
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (0, 0), (340, h), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.45, frame, 0.55, 0, frame)
+
+    def txt(msg, y, color=(220,220,220), scale=0.55, thick=1):
+        cv2.putText(frame, msg, (8, y), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thick)
+
+    if calibrating:
+        txt("CALIBRATING... sit naturally", 35, (0,255,255), 0.65, 2)
+        return
+
+    sc = stress_color(result.stress_score)
+
+    txt(f"STRESS  {result.stress_score:.2f}/10", 35, sc, 0.7, 2)
+    txt(f"STATE   {_state(result.stress_score)}", 62, sc, 0.65, 2)
+
+    txt("─" * 36, 80, (80, 80, 80))
+
+    txt(f"EAR      {result.eye['ear']:.3f}", 105)
+    txt(f"Blinks   {result.eye['blink_count']}  ({result.eye['blinks_per_min']:.1f}/min)", 128)
+
+    txt("─" * 36, 145, (80,80,80))
+
+    e = result.emotions
+    dom = result.dominant
+    txt(f"EMOTION  {dom.upper()}", 168, (180,255,180), 0.62, 2)
+    for i, (name, val) in enumerate(sorted(e.items(), key=lambda x: -x[1])):
+        bar_w = int(val * 120)
+        y0 = 180 + i * 20
+        cv2.rectangle(frame, (8, y0), (8+bar_w, y0+14), (60,120,200), -1)
+        txt(f"{name[:7]:7s} {val:.2f}", y0+12, scale=0.48)
+
+    txt("─" * 36, 326, (80,80,80))
+
+    hp = result.head_pose
+    txt(f"Yaw {hp['yaw']:+.1f}° Pitch {hp['pitch']:+.1f}° Roll {hp['roll']:+.1f}°", 346)
+
+    gz = result.gaze
+    on = "✓" if gz["looking_at_screen"] else "✗"
+    txt(f"Gaze x{gz['x']:+.2f} y{gz['y']:+.2f}  screen{on}", 368)
+
+    txt("─" * 36, 385, (80,80,80))
+
+    hd = result.hands
+    txt(f"Hands  {hd['fidget_level'].upper()}  ({hd['movement']:.4f})", 405)
+
+    ps = result.posture
+    txt(f"Posture  lean:{ps['lean']}  tilt:{ps['shoulder_tilt']:.1f}", 428)
+
+    txt("─" * 36, 445, (80,80,80))
+
+    txt(f"Engage   {result.engagement:.2f}", 465, (140,220,140))
+    txt(f"Confide  {result.confidence:.2f}", 488, (140,200,255))
+    txt(f"Attent   {result.attention:.2f}", 511, (200,200,140))
+
+
+def _state(s: float) -> str:
+    if s < 4:
+        return "RELAXED"
+    if s < 7:
+        return "SLIGHTLY NERVOUS"
+    return "STRESSED"
+
+
+# MediaPipe face-mesh connections (subset used by FaceLandmarker)
+_FACE_OVAL = [
+    (10,338),(338,297),(297,332),(332,284),(284,251),(251,389),(389,356),(356,454),
+    (454,323),(323,361),(361,288),(288,397),(397,365),(365,379),(379,378),(378,400),
+    (400,377),(377,152),(152,148),(148,176),(176,149),(149,150),(150,136),(136,172),
+    (172,58),(58,132),(132,93),(93,234),(234,127),(127,162),(162,21),(21,54),
+    (54,103),(103,67),(67,109),(109,10),
+]
+_FACE_LIPS = [
+    (61,185),(185,40),(40,39),(39,37),(37,0),(0,267),(267,269),(269,270),(270,409),
+    (409,291),(291,375),(375,321),(321,405),(405,314),(314,17),(17,84),(84,181),
+    (181,91),(91,146),(146,61),
+    # inner lips
+    (78,191),(191,80),(80,81),(81,82),(82,13),(13,312),(312,311),(311,310),(310,415),(415,308),
+    (78,95),(95,88),(88,178),(178,87),(87,14),(14,317),(317,402),(402,318),(318,324),(324,308),
+]
+_FACE_LEFT_BROW  = [(46,53),(53,52),(52,65),(65,55),(55,107),(107,66),(66,105),(105,63),(63,70),
+                    (107,55),(55,65),(65,52),(52,53),(53,46)]
+_FACE_RIGHT_BROW = [(276,283),(283,282),(282,295),(295,285),(285,336),(336,296),(296,334),(334,293),(293,300),
+                    (336,285),(285,295),(295,282),(282,283),(283,276)]
+_FACE_LEFT_EYE_EDGE  = [(33,7),(7,163),(163,144),(144,145),(145,153),(153,154),(154,155),(155,133),
+                         (33,246),(246,161),(161,160),(160,159),(159,158),(158,157),(157,173),(173,133)]
+_FACE_RIGHT_EYE_EDGE = [(362,382),(382,381),(381,380),(380,374),(374,373),(373,390),(390,249),(249,263),
+                         (362,398),(398,384),(384,385),(385,386),(386,387),(387,388),(388,466),(466,263)]
+_FACE_NOSE = [(168,6),(6,197),(197,195),(195,5),(5,4),(4,1),(1,19),(19,94),(94,2),
+              (98,97),(97,2),(2,326),(326,327),(327,294),
+              (129,102),(102,49),(49,48),(48,115),(115,220),(220,45),(45,4),
+              (358,331),(331,279),(279,278),(278,344),(344,440),(440,275),(275,4)]
+# Cheek / forehead tessellation — horizontal grid bands
+_FACE_CHEEKS = [
+    # left cheek rows
+    (116,123),(123,147),(147,213),(213,192),(192,214),(214,210),(210,211),(211,32),(32,208),
+    (36,142),(142,126),(126,217),(217,174),(174,198),(198,200),(200,199),(199,175),(175,152),
+    # right cheek rows
+    (345,352),(352,376),(376,433),(433,416),(416,434),(434,430),(430,431),(431,262),(262,428),
+    (266,371),(371,355),(355,437),(437,399),(399,419),(419,420),(420,421),(421,418),(418,262),
+    # cross connections
+    (205,50),(50,118),(118,117),(117,111),(111,35),(35,31),
+    (425,280),(280,347),(347,346),(346,340),(340,265),(265,261),
+    # forehead
+    (151,9),(9,8),(8,168),(21,71),(71,54),(54,103),(103,67),(67,109),
+    (251,301),(301,298),(298,333),(284,251),(368,264),(264,447),(447,366),
+]
+_ALL_FACE_CONNECTIONS = (
+    _FACE_OVAL + _FACE_LIPS + _FACE_LEFT_BROW + _FACE_RIGHT_BROW +
+    _FACE_LEFT_EYE_EDGE + _FACE_RIGHT_EYE_EDGE + _FACE_NOSE + _FACE_CHEEKS
 )
-face_landmarker = FaceLandmarker.create_from_options(face_options)
 
-hand_options = HandLandmarkerOptions(
-    base_options=BaseOptions(
-        model_asset_path=os.path.join(MODEL_DIR, "hand_landmarker.task")
-    ),
-    running_mode=VisionRunningMode.VIDEO,
-    num_hands=2,
-    min_hand_detection_confidence=0.5,
-    min_tracking_confidence=0.5,
-)
-hand_landmarker = HandLandmarker.create_from_options(hand_options)
+# Hand skeleton connections (MediaPipe 21-point hand model)
+_HAND_CONNECTIONS = [
+    (0,1),(1,2),(2,3),(3,4),       # thumb
+    (0,5),(5,6),(6,7),(7,8),       # index
+    (5,9),(9,10),(10,11),(11,12),  # middle
+    (9,13),(13,14),(14,15),(15,16),# ring
+    (13,17),(0,17),(17,18),(18,19),(19,20),  # pinky + palm
+]
 
-pose_options = PoseLandmarkerOptions(
-    base_options=BaseOptions(
-        model_asset_path=os.path.join(MODEL_DIR, "pose_landmarker_lite.task")
-    ),
-    running_mode=VisionRunningMode.VIDEO,
-    num_poses=1,
-    min_pose_detection_confidence=0.5,
-    min_tracking_confidence=0.5,
-)
-pose_landmarker = PoseLandmarker.create_from_options(pose_options)
+# Pose skeleton connections (MediaPipe 33-point body model)
+_POSE_CONNECTIONS = [
+    # face
+    (0,1),(1,2),(2,3),(3,7),(0,4),(4,5),(5,6),(6,8),(9,10),
+    # torso
+    (11,12),(11,23),(12,24),(23,24),
+    # arms
+    (11,13),(13,15),(15,17),(15,19),(15,21),(17,19),
+    (12,14),(14,16),(16,18),(16,20),(16,22),(18,20),
+    # legs
+    (23,25),(24,26),(25,27),(26,28),
+    (27,29),(28,30),(29,31),(30,32),(27,31),(28,32),
+]
 
-# ============================================================
-# Camera setup
-# ============================================================
-cap = cv2.VideoCapture(0)
+
+def draw_face_mesh(frame, face_res):
+    """Draw all 478 face landmark dots + dense mesh edges."""
+    if not face_res or not face_res.face_landmarks:
+        return
+    h, w = frame.shape[:2]
+    lm = face_res.face_landmarks[0]
+    pts = [(int(p.x * w), int(p.y * h)) for p in lm]
+
+    # Draw edge connections first (behind dots)
+    for s, e in _ALL_FACE_CONNECTIONS:
+        if s < len(pts) and e < len(pts):
+            cv2.line(frame, pts[s], pts[e], (0, 200, 80), 1, cv2.LINE_AA)
+
+    # Draw every landmark dot
+    for p in pts:
+        cv2.circle(frame, p, 2, (0, 220, 220), -1, cv2.LINE_AA)
+
+    cv2.putText(frame, f"face:{len(pts)}pts", (w - 155, h - 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 220, 220), 1, cv2.LINE_AA)
+
+
+def draw_hand_landmarks(frame, hand_res):
+    """Draw hand skeleton for up to 2 hands (21 landmarks each)."""
+    if not hand_res or not hand_res.hand_landmarks:
+        return
+    h, w = frame.shape[:2]
+    colors = [(255, 100, 50), (50, 100, 255)]  # orange left, blue right
+    for hi, hand in enumerate(hand_res.hand_landmarks):
+        col = colors[hi % 2]
+        pts = [(int(p.x * w), int(p.y * h)) for p in hand]
+        for s, e in _HAND_CONNECTIONS:
+            if s < len(pts) and e < len(pts):
+                cv2.line(frame, pts[s], pts[e], col, 2, cv2.LINE_AA)
+        for i, p in enumerate(pts):
+            # larger circle for fingertips (4,8,12,16,20)
+            r = 5 if i in (4, 8, 12, 16, 20) else 3
+            cv2.circle(frame, p, r, col, -1, cv2.LINE_AA)
+            cv2.circle(frame, p, r + 1, (255, 255, 255), 1, cv2.LINE_AA)  # white ring
+
+
+def draw_pose_landmarks(frame, pose_res):
+    """Draw body skeleton (33 pose landmarks)."""
+    if not pose_res or not pose_res.pose_landmarks:
+        return
+    h, w = frame.shape[:2]
+    lms = pose_res.pose_landmarks[0]
+    pts = [(int(p.x * w), int(p.y * h)) for p in lms]
+    # Draw bones
+    for s, e in _POSE_CONNECTIONS:
+        if s < len(pts) and e < len(pts):
+            cv2.line(frame, pts[s], pts[e], (180, 60, 255), 2, cv2.LINE_AA)
+    # Draw joints
+    for p in pts:
+        cv2.circle(frame, p, 4, (230, 150, 255), -1, cv2.LINE_AA)
+        cv2.circle(frame, p, 5, (255, 255, 255), 1, cv2.LINE_AA)
+
+
+# ── main loop ────────────────────────────────────────────────────────────────
+pipeline = Pipeline()
+
+# Auto-detect the first working camera index (some systems have /dev/video0
+# reserved for metadata devices and the real webcam is at index 1 or higher).
+cap = None
+for _cam_idx in range(5):
+    _c = cv2.VideoCapture(_cam_idx)
+    _ok, _ = _c.read()
+    if _ok:
+        cap = _c
+        print(f"Camera found at index {_cam_idx}")
+        break
+    _c.release()
+
+if cap is None:
+    print("ERROR: No usable camera found (tried indices 0-4). "
+          "Connect a webcam and retry.", file=sys.stderr)
+    sys.exit(1)
+
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-timestamp_ms = 0
+from tracker import CALIBRATION_FRAMES
+import mediapipe as mp
 
-print("Starting Interview Stress Tracker...")
-print("Press ESC to quit.")
+# Re-use mediapipe for hand/pose drawing (results already run inside Pipeline)
+# We need raw results for drawing; expose them via a thin wrapper.
+# Quick approach: run detectors again from pipeline internals isn't clean,
+# so we duplicate draw-only detection using pipeline's internal landmarkers.
+
+print("Starting MockMentor Tracker — press ESC to quit  |  L = toggle landmark dots")
+frame_idx = 0
+last_result = None
+show_landmarks = False   # toggled with the L key
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -189,146 +317,44 @@ while cap.isOpened():
         break
 
     frame = cv2.flip(frame, 1)
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    ts = time.time()
 
-    # Create MediaPipe Image
-    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-    timestamp_ms += 33  # ~30 fps
+    result = pipeline.process(frame, ts)
+    last_result = result
 
-    # Run all three detectors
-    face_result = face_landmarker.detect_for_video(mp_image, timestamp_ms)
-    hand_result = hand_landmarker.detect_for_video(mp_image, timestamp_ms)
-    pose_result = pose_landmarker.detect_for_video(mp_image, timestamp_ms)
+    calibrating = frame_idx < CALIBRATION_FRAMES
+    draw_hud(frame, result, calibrating)
 
-    # ---- Draw landmarks ----
-    if face_result.face_landmarks:
-        draw_landmarks_on_frame(frame, face_result.face_landmarks[0],
-                                 color=(0, 255, 0), circle_radius=1)
+    # ── landmark overlay (toggled with L) ───────────────────────────────
+    if show_landmarks:
+        draw_pose_landmarks(frame, pipeline.last_pose_res)    # draw body first (back)
+        draw_face_mesh(frame, pipeline.last_face_res)          # face on top
+        draw_hand_landmarks(frame, pipeline.last_hand_res)     # hands on top
 
-    for hand_lms in hand_result.hand_landmarks:
-        draw_landmarks_on_frame(frame, hand_lms, HAND_CONNECTIONS,
-                                 color=(255, 0, 0), thickness=2, circle_radius=2)
+    # ── on-screen hint ──────────────────────────────────────────────────
+    h_fr, w_fr = frame.shape[:2]
+    lbl = "[L] landmarks: ON  (face+hands+body)" if show_landmarks else "[L] landmarks: OFF"
+    cv2.putText(frame, lbl, (w_fr - 280, 22),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.48,
+                (0, 220, 220) if show_landmarks else (120, 120, 120),
+                1, cv2.LINE_AA)
 
-    if pose_result.pose_landmarks:
-        draw_landmarks_on_frame(frame, pose_result.pose_landmarks[0],
-                                 POSE_CONNECTIONS, color=(0, 255, 255),
-                                 thickness=2, circle_radius=3)
+    frame_idx += 1
 
-    # ============================================================
-    # Face metrics (EAR + blink detection)
-    # ============================================================
-    ear = 0.3
-    if face_result.face_landmarks:
-        lm = face_result.face_landmarks[0]
-
-        left_ear_val = eye_aspect_ratio(lm, LEFT_EYE)
-        right_ear_val = eye_aspect_ratio(lm, RIGHT_EYE)
-        ear = (left_ear_val + right_ear_val) / 2.0
-
-        ear_history.append(ear)
-        ear = np.mean(ear_history)
-
-        # Proper blink detection (count on eye re-open)
-        if ear < EYE_THRESHOLD and not EYE_CLOSED:
-            EYE_CLOSED = True
-        elif ear >= EYE_THRESHOLD and EYE_CLOSED:
-            blink_counter += 1
-            EYE_CLOSED = False
-
-    # ============================================================
-    # Hand movement tracking
-    # ============================================================
-    movement_score = 0.0
-
-    if hand_result.hand_landmarks:
-        for i, hand_lm in enumerate(hand_result.hand_landmarks):
-            center = get_hand_center(hand_lm)
-            if i == 0:  # first detected hand
-                if prev_left_hand is not None:
-                    movement_score += safe_distance(center, prev_left_hand)
-                prev_left_hand = center
-            elif i == 1:  # second detected hand
-                if prev_right_hand is not None:
-                    movement_score += safe_distance(center, prev_right_hand)
-                prev_right_hand = center
-
-    movement_history.append(movement_score)
-    movement_score = np.mean(movement_history)
-
-    # ============================================================
-    # Calibration phase
-    # ============================================================
-    frame_count += 1
-
-    if frame_count < CALIBRATION_FRAMES:
-        if baseline_ear is None:
-            baseline_ear = ear
-        else:
-            baseline_ear = 0.9 * baseline_ear + 0.1 * ear
-
-        if baseline_movement is None:
-            baseline_movement = movement_score
-        else:
-            baseline_movement = 0.9 * baseline_movement + 0.1 * movement_score
-
-        cv2.putText(frame, "Calibrating... Sit naturally", (20, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-        cv2.imshow("Interview Stress Tracker", frame)
-        if cv2.waitKey(1) & 0xFF == 27:
-            break
-        continue
-
-    # ============================================================
-    # Compute stress metrics
-    # ============================================================
-    elapsed = time.time() - start_time
-    blinks_per_min = blink_counter / (elapsed / 60 + 1e-6)
-
-    ear_drop = max(0, baseline_ear - ear)
-    movement_change = max(0, movement_score - baseline_movement)
-
-    # Normalized stress score
-    stress_score = (
-        ear_drop * 8 +
-        min(blinks_per_min, 40) * 0.03 +
-        min(movement_change, 0.02) * 200
-    )
-
-    # ============================================================
-    # Display on frame
-    # ============================================================
-    cv2.putText(frame, f"EAR: {ear:.3f}", (20, 60),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-
-    cv2.putText(frame, f"Blinks/min: {blinks_per_min:.1f}", (20, 95),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-
-    cv2.putText(frame, f"Movement: {movement_score:.4f}", (20, 130),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
-
-    cv2.putText(frame, f"Stress Score: {stress_score:.2f}", (20, 170),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
-
-    # Stress state label
-    state = "RELAXED"
-    if stress_score > 4:
-        state = "SLIGHTLY NERVOUS"
-    if stress_score > 7:
-        state = "STRESSED"
-
-    cv2.putText(frame, f"STATE: {state}", (20, 210),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
-
-    cv2.imshow("Interview Stress Tracker", frame)
-
-    if cv2.waitKey(1) & 0xFF == 27:
+    cv2.imshow("MockMentor Tracker", frame)
+    key = cv2.waitKey(1) & 0xFF
+    if key == 27:          # ESC — quit
         break
+    elif key == ord('l') or key == ord('L'):   # L — toggle dots
+        show_landmarks = not show_landmarks
+        print(f"Landmarks overlay: {'ON' if show_landmarks else 'OFF'}")
 
-# ============================================================
-# Cleanup
-# ============================================================
-face_landmarker.close()
-hand_landmarker.close()
-pose_landmarker.close()
+pipeline.close()
 cap.release()
 cv2.destroyAllWindows()
+
+if last_result:
+    print("\n─── Session End ───")
+    print(f"Dominant emotion : {last_result.dominant}")
+    print(f"Final stress     : {last_result.stress_score:.2f}")
+    print(f"Total blinks     : {last_result.eye['blink_count']}")

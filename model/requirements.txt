@@ -1,8 +1,8 @@
 opencv-python
-mediapipe
+mediapipe>=0.10.14
 numpy
 fastapi
-uvicorn
-groq
+uvicorn[standard]
+python-multipart
 python-dotenv
 websockets
