@@ -360,6 +360,8 @@ function update(d) {
   document.getElementById('d-latency').textContent = lat;
 }
 
+let _retries = 0;
+
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const wsUrl = `${proto}://${location.host}/ws/debug`;
@@ -368,6 +370,7 @@ function connectWS() {
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
+    _retries = 0; // reset on success
     wsStatus.textContent = 'Connected';
     wsStatus.className = 'status-pill connected';
     dot.style.background = '#22c55e';
@@ -379,14 +382,35 @@ function connectWS() {
   };
 
   ws.onclose = () => {
-    wsStatus.textContent = 'Disconnected — retrying…';
-    wsStatus.className = 'status-pill error';
-    dot.style.background = '#ef4444';
     clearInterval(sendInterval);
-    setTimeout(connectWS, 2000);
+    dot.style.background = '#ef4444';
+    if (_retries >= 5) {
+      wsStatus.textContent = 'Pipeline failed — check Render logs';
+      wsStatus.className = 'status-pill error';
+      return; // stop retrying
+    }
+    const delay = Math.min(2000 * Math.pow(2, _retries), 30000);
+    _retries++;
+    wsStatus.textContent = `Disconnected — retry ${_retries}/5 in ${Math.round(delay/1000)}s…`;
+    wsStatus.className = 'status-pill error';
+    setTimeout(connectWS, delay);
   };
 
   ws.onerror = () => ws.close();
+
+  // Show server-side error messages (pipeline crash etc.)
+  const _origOnMessage = ws.onmessage;
+  ws.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.error) {
+        wsStatus.textContent = `Server error: ${d.error}`;
+        wsStatus.className = 'status-pill error';
+        return;
+      }
+    } catch(e){}
+    if (_origOnMessage) _origOnMessage(ev);
+  };
 }
 
 function startSending() {
@@ -459,7 +483,22 @@ async def api_root():
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "ts": time.time()}
+    pipeline_ok = _pipeline is not None
+    return {"status": "ok", "pipeline_ready": pipeline_ok, "ts": time.time()}
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Pre-warm pipeline so crash appears in Render logs at boot, not on first WS."""
+    import asyncio, concurrent.futures
+    loop = asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(None, get_pipeline)
+        print("Pipeline initialised successfully.")
+    except Exception as exc:
+        import traceback
+        print(f"FATAL: Pipeline failed to initialise — {exc}")
+        traceback.print_exc()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -476,7 +515,15 @@ async def ws_endpoint(websocket: WebSocket, session_id: str):
       {"cmd": "summary"} — return session aggregate
     """
     await websocket.accept()
-    pipeline = get_pipeline()
+    try:
+        pipeline = get_pipeline()
+    except Exception as init_exc:
+        import traceback
+        traceback.print_exc()
+        await websocket.send_json({"error": f"Pipeline init failed: {init_exc}"})
+        await websocket.close()
+        return
+
     storage = SessionStorage()
     storage.session_id = session_id
 
