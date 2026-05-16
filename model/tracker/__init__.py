@@ -2,10 +2,20 @@
 Tracker package — orchestrates all sub-modules into a single Pipeline.
 Call Pipeline.process(frame_bgr, timestamp_s) → FrameResult.
 """
-import time
 import os
+import time
 import numpy as np
+
+# ── Headless / Render compatibility ──────────────────────────────────────────
+# MediaPipe eagerly tries to dlopen libGLESv2.so.2 even for CPU inference.
+# On Render free tier (and any headless Linux without Mesa GPU) this crashes.
+# Force Mesa software renderer before the first mediapipe import.
+os.environ.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
+os.environ.setdefault("MESA_GL_VERSION_OVERRIDE", "3.3")
+os.environ.setdefault("EGL_PLATFORM", "surfaceless")
+
 import mediapipe as mp
+
 
 from .face import FaceTracker, eye_aspect_ratio, LEFT_EYE, RIGHT_EYE
 from .emotion import classify_emotions, dominant_emotion
