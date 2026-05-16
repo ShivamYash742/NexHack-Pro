@@ -138,6 +138,12 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
     <video id="video" autoplay playsinline muted></video>
     <canvas id="cap"></canvas>
 
+    <div id="start-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0d0d0f;z-index:20;gap:16px">
+      <p style="color:#94a3b8;font-size:.95rem">Camera access required for live analysis</p>
+      <button id="start-btn" onclick="startCamera()" style="padding:12px 32px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;letter-spacing:.02em">Enable Camera</button>
+      <p id="cam-err" style="color:#f87171;font-size:.8rem;display:none"></p>
+    </div>
+
     <div id="cal-overlay">
       <span>Calibrating… sit naturally</span>
       <div id="cal-bar-wrap"><div id="cal-bar" style="width:0%"></div></div>
@@ -395,17 +401,35 @@ function startSending() {
   }, 200); // 5 fps
 }
 
-// Start camera
-navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-  .then(stream => {
-    video.srcObject = stream;
-    connectWS();
-  })
-  .catch(err => {
-    wsStatus.textContent = 'Camera denied';
-    wsStatus.className = 'status-pill error';
-    console.error(err);
-  });
+// Start camera — called by button click (requires user gesture for permission prompt)
+function startCamera() {
+  const btn = document.getElementById('start-btn');
+  const errEl = document.getElementById('cam-err');
+  if (btn) btn.textContent = 'Requesting…';
+  navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false })
+    .then(stream => {
+      video.srcObject = stream;
+      video.onloadedmetadata = () => {
+        const overlay = document.getElementById('start-overlay');
+        if (overlay) overlay.style.display = 'none';
+        connectWS();
+      };
+    })
+    .catch(err => {
+      console.error(err);
+      if (btn) btn.textContent = 'Retry';
+      if (errEl) {
+        errEl.style.display = 'block';
+        errEl.textContent = err.name === 'NotAllowedError'
+          ? 'Permission denied — click the camera icon in your browser address bar and allow access.'
+          : err.name === 'NotFoundError'
+          ? 'No camera found on this device.'
+          : `Error: ${err.message}`;
+      }
+      wsStatus.textContent = 'Camera denied';
+      wsStatus.className = 'status-pill error';
+    });
+}
 </script>
 </body>
 </html>"""
