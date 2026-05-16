@@ -7,11 +7,12 @@ import { Card } from '@/components/ui/card';
 interface InterviewCompleteProps {
   interviewId?: string;
   sessionId?: string | null;
+  faceAnalytics?: object | null;
 }
 
 const MAX_RETRIES = 3;
 
-const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sessionId }) => {
+const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sessionId, faceAnalytics }) => {
   const [showAnimation, setShowAnimation] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
@@ -32,7 +33,7 @@ const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sess
       const response = await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interviewId, sessionId }),
+        body: JSON.stringify({ interviewId, sessionId, ...(faceAnalytics ? { faceAnalytics } : {}) }),
       });
 
       const data = await response.json();

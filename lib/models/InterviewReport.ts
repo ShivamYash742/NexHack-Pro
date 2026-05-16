@@ -57,6 +57,21 @@ export interface IDetailedFeedback {
   };
 }
 
+export interface IFaceAnalytics {
+  duration_s: number;
+  frame_count: number;
+  emotions_avg: Record<string, number>;
+  dominant_histogram: Record<string, number>;
+  stress_avg: number;
+  stress_peak: number;
+  engagement_avg: number;
+  confidence_avg: number;
+  attention_avg: number;
+  attention_on_screen_frac: number;
+  total_blinks: number;
+  blinks_per_min_avg: number;
+}
+
 export interface IInterviewReport extends mongoose.Document {
   interviewId: string;
   sessionId: string;
@@ -65,6 +80,7 @@ export interface IInterviewReport extends mongoose.Document {
   mentorName: string;
   performanceAnalysis: IPerformanceAnalysis;
   detailedFeedback: IDetailedFeedback;
+  faceAnalytics?: IFaceAnalytics;
   interviewDuration: number;
   generatedAt: Date;
   reportVersion: string;
@@ -166,6 +182,10 @@ const InterviewReportSchema = new mongoose.Schema(
     generatedAt: {
       type: Date,
       required: true,
+    },
+    faceAnalytics: {
+      type: mongoose.Schema.Types.Mixed,
+      required: false,
     },
     reportVersion: {
       type: String,

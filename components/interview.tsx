@@ -36,6 +36,9 @@ import {
 } from './ui/alert-dialog';
 import { mentors } from './mentors';
 import InterviewComplete from './interview-complete';
+import { useFaceTracker } from '@/hooks/useFaceTracker';
+import { StressHUD } from '@/components/interview/StressHUD';
+import type { FaceSummary } from '@/lib/mlSidecar';
 
 const Interview = ({
   interviewId,
@@ -75,6 +78,57 @@ const Interview = ({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const faceSummaryRef = useRef<object | null>(null);
+  const questionSnapshotsRef = useRef<FaceSummary[]>([]);
+  const gazeOffTimeRef = useRef<number | null>(null);
+  const alertCooldownRef = useRef<number>(0);
+  const interviewerMsgCountRef = useRef(0);
+
+  const { lastFrame, isSidecarAvailable, requestSummary, resetSession } = useFaceTracker(
+    videoRef,
+    sessionId,
+    isCameraOn,
+  );
+
+  // 3.5 — Attention alert: if gaze leaves screen for 3s, speak reminder (10s cooldown)
+  useEffect(() => {
+    if (!isSidecarAvailable || !lastFrame?.face_detected) return;
+    const now = Date.now();
+    if (!lastFrame.gaze?.looking_at_screen) {
+      if (!gazeOffTimeRef.current) gazeOffTimeRef.current = now;
+      else if (
+        now - gazeOffTimeRef.current >= 3000 &&
+        now - alertCooldownRef.current >= 10000
+      ) {
+        alertCooldownRef.current = now;
+        gazeOffTimeRef.current = null;
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          const utt = new SpeechSynthesisUtterance('Please look at the camera.');
+          utt.volume = 0.8;
+          utt.rate = 1.1;
+          window.speechSynthesis.speak(utt);
+        }
+      }
+    } else {
+      gazeOffTimeRef.current = null;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastFrame, isSidecarAvailable]);
+
+  // 3.3 — Per-question emotion snapshot: on each new interviewer message (after the first),
+  //        snapshot the current ML session aggregate, then reset for the next question.
+  useEffect(() => {
+    if (!isSidecarAvailable) return;
+    const count = contextMessages.filter(m => m.sender !== 'CLIENT').length;
+    if (count > interviewerMsgCountRef.current && interviewerMsgCountRef.current > 0) {
+      requestSummary().then(summary => {
+        if (summary) questionSnapshotsRef.current.push(summary);
+        resetSession();
+      });
+    }
+    interviewerMsgCountRef.current = count;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextMessages, isSidecarAvailable]);
 
   // Timer effect - countdown from 3 minutes
   useEffect(() => {
@@ -270,6 +324,14 @@ const Interview = ({
   const exitInterview = async () => {
     setExitLoading(true);
 
+    // Collect face analytics before stopping tracker (3.3: merge per-question snapshots)
+    const finalSummary = await requestSummary();
+    faceSummaryRef.current = finalSummary
+      ? { ...finalSummary, questionSnapshots: questionSnapshotsRef.current }
+      : questionSnapshotsRef.current.length > 0
+        ? { questionSnapshots: questionSnapshotsRef.current }
+        : null;
+
     const totalDuration = Date.now() - startTime.getTime();
     const averagePauseLength = conversationMetrics.totalPauses > 0 
       ? conversationMetrics.totalPauseTime / conversationMetrics.totalPauses : 0;
@@ -319,7 +381,13 @@ const Interview = ({
   };
 
   if (isInterviewComplete) {
-    return <InterviewComplete interviewId={interviewId} sessionId={sessionId} />;
+    return (
+      <InterviewComplete
+        interviewId={interviewId}
+        sessionId={sessionId}
+        faceAnalytics={faceSummaryRef.current}
+      />
+    );
   }
 
   return (
@@ -411,6 +479,9 @@ const Interview = ({
                   <p className="mt-4 text-muted-foreground font-medium">Camera is off</p>
                 </div>
               )}
+
+              {/* ML face analytics HUD (only when sidecar connected) */}
+              {isSidecarAvailable && <StressHUD frame={lastFrame} />}
 
               {/* Interim Transcript Overlay */}
               {interimTranscript && (

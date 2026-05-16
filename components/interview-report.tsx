@@ -13,7 +13,8 @@ import {
   BarChart3,
   Calendar,
   MessageSquareQuote,
-  Star
+  Star,
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -79,6 +80,20 @@ interface ReportData {
       shortTerm: string[];
       longTerm: string[];
     };
+  };
+  faceAnalytics?: {
+    duration_s: number;
+    frame_count: number;
+    emotions_avg: Record<string, number>;
+    dominant_histogram: Record<string, number>;
+    stress_avg: number;
+    stress_peak: number;
+    engagement_avg: number;
+    confidence_avg: number;
+    attention_avg: number;
+    attention_on_screen_frac: number;
+    total_blinks: number;
+    blinks_per_min_avg: number;
   };
 }
 
@@ -366,6 +381,75 @@ const InterviewReport: React.FC<InterviewReportProps> = ({ interviewId, onBack }
              </div>
            </CardContent>
         </Card>
+
+        {/* Biometric Intelligence — only rendered when ML sidecar was active */}
+        {report.faceAnalytics && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center">
+              <Eye className="w-6 h-6 mr-3 text-primary" />
+              Biometric Intelligence
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-background/40 border-border/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Emotion Distribution</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2.5">
+                  {Object.entries(report.faceAnalytics.emotions_avg)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([emotion, score]) => (
+                      <div key={emotion} className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400 w-20 capitalize">{emotion}</span>
+                        <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary/80 transition-all duration-700"
+                            style={{ width: `${Math.round(score * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-slate-500 w-8 text-right">{Math.round(score * 100)}%</span>
+                      </div>
+                    ))}
+                </CardContent>
+              </Card>
+
+              <Card className="bg-background/40 border-border/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Physiological Signals</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    { label: 'Stress', value: Math.min(100, Math.round(report.faceAnalytics.stress_avg * 10)), color: 'bg-rose-500' },
+                    { label: 'Engagement', value: Math.round(report.faceAnalytics.engagement_avg * 100), color: 'bg-blue-500' },
+                    { label: 'Confidence', value: Math.round(report.faceAnalytics.confidence_avg * 100), color: 'bg-emerald-500' },
+                    { label: 'Attention', value: Math.round(report.faceAnalytics.attention_avg * 100), color: 'bg-indigo-500' },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-3">
+                      <span className="text-xs text-slate-400 w-20">{item.label}</span>
+                      <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${item.color}`} style={{ width: `${item.value}%` }} />
+                      </div>
+                      <span className="text-xs text-slate-500 w-8 text-right">{item.value}</span>
+                    </div>
+                  ))}
+                  <Separator className="bg-border/30 my-2" />
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    {[
+                      { label: 'On-Screen Focus', value: `${Math.round(report.faceAnalytics.attention_on_screen_frac * 100)}%` },
+                      { label: 'Total Blinks', value: String(report.faceAnalytics.total_blinks) },
+                      { label: 'Blink Rate', value: `${Math.round(report.faceAnalytics.blinks_per_min_avg)}/min` },
+                      { label: 'Peak Stress', value: `${report.faceAnalytics.stress_peak.toFixed(1)} / 10` },
+                    ].map(item => (
+                      <div key={item.label} className="space-y-0.5">
+                        <p className="text-sm font-semibold text-slate-200">{item.value}</p>
+                        <p className="text-xs text-slate-500">{item.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
         {/* Q&A Transcripts & Feedback Analysis */}
         {report.detailedFeedback.specificFeedback && report.detailedFeedback.specificFeedback.length > 0 && (
