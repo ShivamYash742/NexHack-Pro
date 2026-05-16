@@ -129,7 +129,7 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
   <div class="dot" id="dot"></div>
   <h1>MockMentor — ML Sidecar</h1>
   <span class="status-pill" id="ws-status">Connecting…</span>
-  <span style="margin-left:auto;font-size:.72rem;color:#475569">ws://localhost:8001/ws/debug</span>
+  <span style="margin-left:auto;font-size:.72rem;color:#475569" id="ws-url-label">connecting...</span>
 </header>
 
 <main>
@@ -355,7 +355,10 @@ function update(d) {
 }
 
 function connectWS() {
-  const wsUrl = `ws://${location.hostname}:${location.port || 8001}/ws/debug`;
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsUrl = `${proto}://${location.host}/ws/debug`;
+  const label = document.getElementById('ws-url-label');
+  if (label) label.textContent = wsUrl;
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
