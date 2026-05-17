@@ -1,18 +1,20 @@
 # MockMentor ML Sidecar — Docker runtime for Render
 # Provides Mesa software GLES so MediaPipe can initialise on headless Linux.
 
-FROM python:3.13-slim
+FROM python:3.11-slim
 
 # ── System deps (Mesa GLES + OpenCV runtime) ────────────────────────────────
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      libgles2 libegl1 libgl1 \
-      libglib2.0-0 libsm6 libxext6 libxrender1 && \
+      libgles2 libegl1 libgl1 libglvnd0 \
+      libglib2.0-0 libsm6 libxext6 libxrender1 \
+      libgles2-mesa libegl1-mesa libgl1-mesa-glx && \
     rm -rf /var/lib/apt/lists/*
 
 # ── Force Mesa software renderer (no GPU on Render free tier) ───────────────
 ENV LIBGL_ALWAYS_SOFTWARE=1
 ENV MESA_GL_VERSION_OVERRIDE=3.3
+ENV MESA_LOADER_DRIVER_OVERRIDE=swrast
 ENV EGL_PLATFORM=surfaceless
 ENV PYTHONUNBUFFERED=1
 
