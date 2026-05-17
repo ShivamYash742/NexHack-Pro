@@ -8,7 +8,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       libgles2 libegl1 libgl1 libglvnd0 \
       libglib2.0-0 libsm6 libxext6 libxrender1 \
-      libgles2-mesa libegl1-mesa libgl1-mesa-glx && \
+      libgl1-mesa-dri && \
     rm -rf /var/lib/apt/lists/*
 
 # ── Force Mesa software renderer (no GPU on Render free tier) ───────────────
