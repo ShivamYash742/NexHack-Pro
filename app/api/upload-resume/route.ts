@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { storage, BUCKET_ID } from '@/lib/appwrite';
-import { ID } from 'appwrite';
+import { serverStorage, BUCKET_ID } from '@/lib/appwrite-server';
+import { ID } from 'node-appwrite';
 import { generateWithGroq } from '@/lib/groq';
 import { parsePDF, truncateForAI } from '@/lib/pdf';
 import dbConnect from '@/lib/mongodb';
@@ -23,22 +23,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Upload file to Appwrite
+    // Convert the Web API File to a Buffer for node-appwrite
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+    // Upload file to Appwrite using server SDK (node-appwrite v24+)
     const fileId = ID.unique();
-    await storage.createFile(BUCKET_ID, fileId, file);
+    const uploadFile = new File([fileBuffer], file.name, { type: file.type });
+    await serverStorage.createFile(BUCKET_ID, fileId, uploadFile);
 
-    // Get file URL
-    const fileUrl = storage.getFileView(BUCKET_ID, fileId);
+    // Build the file view URL
+    const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+    const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+    const fileUrl = `${endpoint}/storage/buckets/${BUCKET_ID}/files/${fileId}/view?project=${projectId}`;
 
-    // Read file content for AI processing
-    const fileBuffer = await file.arrayBuffer();
+    // Parse file content for AI processing
     let fileContent = '';
 
-    // Check if it's a PDF file
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       try {
-        // Parse PDF using shared utility
-        fileContent = await parsePDF(Buffer.from(fileBuffer));
+        fileContent = await parsePDF(fileBuffer);
         console.log('PDF parsed successfully, extracted text length:', fileContent.length);
       } catch (pdfError) {
         console.error('Error parsing PDF:', pdfError);
@@ -48,8 +51,7 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      // For text files, convert buffer to string
-      fileContent = Buffer.from(fileBuffer).toString('utf-8');
+      fileContent = fileBuffer.toString('utf-8');
     }
 
     // Check if we extracted any content
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
     const userProfile = await UserProfile.findOneAndUpdate(
       { userId },
       {
-        resumeUrl: fileUrl.toString(),
+        resumeUrl: fileUrl,
         resumeSummary,
       },
       { upsert: true, new: true }
@@ -81,15 +83,16 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      fileUrl: fileUrl.toString(),
+      fileUrl,
       resumeSummary,
       userProfile,
       extractedTextLength: fileContent.length,
     });
   } catch (error) {
     console.error('Error uploading resume:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to upload resume';
     return NextResponse.json(
-      { error: 'Failed to upload resume' },
+      { error: 'Failed to upload resume', details: errorMessage },
       { status: 500 }
     );
   }

@@ -13,8 +13,7 @@ import {
   Loader2,
   User,
 } from 'lucide-react';
-import { storage, BUCKET_ID } from '@/lib/appwrite';
-import { ID } from 'appwrite';
+
 import Navbar from '@/components/navbar';
 import { cn } from '@/lib/utils';
 import { mentors } from '@/components/mentors';
@@ -135,42 +134,13 @@ export default function NewInterviewPage() {
     setLoading(true);
 
     try {
-      // Upload file directly to Appwrite
-      const fileId = ID.unique();
-      await storage.createFile(BUCKET_ID, fileId, selectedFile);
+      // Send file to server-side API route for Appwrite upload + AI processing
+      const formData = new FormData();
+      formData.append('resume', selectedFile);
 
-      // Get file URL
-      const fileUrl = storage.getFileView(BUCKET_ID, fileId);
-
-      // Read file content for AI processing
-      let fileContent = '';
-      
-      if (selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf')) {
-        // For PDFs, send as base64
-        const arrayBuffer = await selectedFile.arrayBuffer();
-        const base64 = btoa(
-          new Uint8Array(arrayBuffer).reduce(
-            (data, byte) => data + String.fromCharCode(byte),
-            ''
-          )
-        );
-        fileContent = `data:application/pdf;base64,${base64}`;
-      } else {
-        // For text files, read as text
-        fileContent = await selectedFile.text();
-      }
-
-      // Send file URL and content to API for AI processing
-      const response = await fetch('/api/process-resume', {
+      const response = await fetch('/api/upload-resume', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileUrl: fileUrl.toString(),
-          fileContent,
-          fileName: selectedFile.name,
-        }),
+        body: formData,
       });
 
       // Check if response is OK before parsing JSON
