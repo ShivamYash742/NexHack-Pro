@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: mockmentor-ml-sidecar
+    runtime: docker
+    rootDir: model
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: ML_ALLOWED_ORIGIN
+        value: "*"
+    plan: free
