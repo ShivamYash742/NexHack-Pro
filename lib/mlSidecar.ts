@@ -1,10 +1,12 @@
-// ML sidecar config + shared types for browser ↔ Python WS bridge
+// ML sidecar types — used by frontend components.
+// The face tracking now runs CLIENT-SIDE via @mediapipe/tasks-vision.
+// The external Python sidecar server is no longer needed.
 
-export const ML_BASE_URL = (
-  process.env.NEXT_PUBLIC_ML_SIDECAR_URL ?? 'http://localhost:8001'
-).replace(/\/$/, '');
-
-export const ML_WS_BASE = ML_BASE_URL.replace(/^http/, 'ws');
+// Keep for backward compatibility — no longer imported by useFaceTracker.
+// @deprecated Face tracking now runs directly in the browser.
+export const ML_BASE_URL = '';
+/** @deprecated Face tracking now runs directly in the browser. */
+export const ML_WS_BASE = '';
 
 export interface FaceEmotions {
   happy: number;
@@ -16,16 +18,44 @@ export interface FaceEmotions {
   neutral: number;
 }
 
+export interface HeadPoseResult {
+  yaw: number;
+  pitch: number;
+  roll: number;
+}
+
+export interface GazeResult {
+  x: number;
+  y: number;
+  looking_at_screen: boolean;
+}
+
+export interface EyeResult {
+  ear: number;
+  blink_count: number;
+  blinks_per_min: number;
+}
+
+export interface HandResult {
+  movement: number;
+  fidget_level: string;
+}
+
+export interface PostureResult {
+  shoulder_tilt: number;
+  lean: string;
+}
+
 export interface FaceResult {
   ts: number;
   face_detected: boolean;
   emotions: FaceEmotions;
   dominant: string;
-  head_pose: { yaw: number; pitch: number; roll: number };
-  gaze: { x: number; y: number; looking_at_screen: boolean };
-  eye: { ear: number; blink_count: number; blinks_per_min: number };
-  hands: { movement: number; fidget_level: string };
-  posture: { shoulder_tilt: number; lean: string };
+  head_pose: HeadPoseResult;
+  gaze: GazeResult;
+  eye: EyeResult;
+  hands: HandResult;
+  posture: PostureResult;
   stress_score: number;
   engagement: number;
   confidence: number;
