@@ -15,7 +15,7 @@ export class EMA {
 
   update<T extends Record<string, number> | number>(x: T): T {
     if (this._val === null) {
-      this._val = x as any;
+      this._val = x;
     } else if (typeof x === 'object' && typeof this._val === 'object') {
       const prev = this._val as Record<string, number>;
       const next: Record<string, number> = {};
@@ -497,7 +497,23 @@ export interface AggregatedSummary {
   blinks_per_min_avg: number;
 }
 
-export function aggregateSession(frames: Array<Record<string, any>>): AggregatedSummary {
+interface FrameData {
+  ts: number;
+  face_detected: boolean;
+  emotions: EmotionScores;
+  dominant: string;
+  head_pose: HeadPose;
+  gaze: GazeResult;
+  eye: { ear: number; blink_count: number; blinks_per_min: number };
+  hands: HandResult;
+  posture: PostureResult;
+  stress_score: number;
+  engagement: number;
+  confidence: number;
+  attention: number;
+}
+
+export function aggregateSession(frames: FrameData[]): AggregatedSummary {
   const n = frames.length;
   if (n === 0) {
     return {
