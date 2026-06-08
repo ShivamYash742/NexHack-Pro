@@ -112,7 +112,6 @@ const Interview = ({
     } else {
       gazeOffTimeRef.current = null;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastFrame, isSidecarAvailable]);
 
   // 3.3 — Per-question emotion snapshot: on each new interviewer message (after the first),

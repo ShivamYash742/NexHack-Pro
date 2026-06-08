@@ -2,8 +2,8 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useFaceTracker } from '@/hooks/useFaceTracker';
-import { FaceResult } from '@/lib/mlSidecar';
 import type { AggregatedSummary } from '@/lib/faceAnalysis';
+import type { FaceEmotions } from '@/lib/mlSidecar';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -103,8 +103,8 @@ export default function TestFacePage() {
         setCameraActive(true);
         addLog('✅ Camera started');
       }
-    } catch (err: any) {
-      const msg = err?.message ?? String(err);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       setCameraError(msg);
       addLog(`❌ Camera error: ${msg}`);
     }
@@ -242,8 +242,9 @@ export default function TestFacePage() {
   const f = lastFrame;
   const emotionScores: Record<string, number> = {};
   if (f?.emotions) {
+    const emotions = f.emotions as FaceEmotions;
     for (const k of EMOTION_KEYS) {
-      emotionScores[k] = (f.emotions as any)[k] ?? 0;
+      emotionScores[k] = emotions[k] ?? 0;
     }
   }
 
