@@ -339,7 +339,41 @@ No code changes needed — just edit the JSON file and restart the server!
 - Historical performance tracking and progress dashboards
 - Export reports as PDF
 - Integration of ML stress timeline data into the final report
+- Move MediaPipe pipeline to browser via WASM for zero-latency, zero-cost, privacy-first tracking
+- Add support for multiple LLM providers (Claude, OpenAI) with unified routing
 
 ---
 
 **Built for NexHack by Team Algorhythm** 🚀
+
+---
+
+## 🎯 Interview Prep — Key Files to Study
+
+For a technical interview on this project, focus on these files (in priority order):
+
+| Priority | File | Why It Matters |
+|---|---|---|
+| **1** | `architecture_explanation.md` | **Master this first.** 10-min architectural deep-dive script. Covers all 4 services, voice architecture, ML sidecar, AI fallback, DB choices, scaling. |
+| **2** | `interview_qna.md` | **Memorize key answers.** 7 prepared Q&As: FastAPI vs Flask/Django, MongoDB vs MySQL, STT/TTS implementation, LLM question generation, DB collections, scaling to 10k, biggest tradeoffs. |
+| **3** | `model/tracker/stress.py` | Core ML logic — stress/engagement/confidence/attention formulas. Be ready to explain the math and calibration. |
+| **4** | `hooks/useSpeechToText.ts` | Native browser STT with custom silence detection (3s timeout) + auto-restart logic. Unique cost-saving approach. |
+| **5** | `hooks/useTextToSpeech.ts` | Promise-based TTS with smart voice selection + interruption handling. |
+| **6** | `lib/prompts.json` | Centralized prompts — show how you decoupled AI behavior from code (persona, scoring rubric). |
+| **7** | `app/api/ai-chat/route.ts` | Live conversation loop with Groq fallback + generic question fallback on rate limits. |
+| **8** | `app/api/generate-report/route.ts` | Report generation with **brutal heuristic fallback** — scores from word count, WPM, filler words when AI fails. |
+| **9** | `model/tracker/__init__.py` | Pipeline orchestrator — MediaPipe integration, calibration, smoothing, per-frame processing flow. |
+| **10** | `model/server.py` | FastAPI WebSocket server — frame handling, session storage, debug dashboard, headless Render fixes. |
+
+### One-Liner Project Pitch
+> "MockMentor is a microservices-based AI mock interview platform. Next.js frontend handles UI/auth/voice via native browser APIs ($0 cost). FastAPI + MediaPipe sidecar tracks stress/emotions/gaze via WebSocket. Gemini primary with Groq fallback for all LLM tasks. MongoDB for flexible AI JSON, Appwrite for file storage. Brutally honest reports with hard scoring rubric + heuristic fallback."
+
+### Top 3 Talking Points
+1. **Voice Architecture** — Native Web Speech API = zero latency, $0 cost vs Whisper/ElevenLabs
+2. **ML Sidecar** — Separate Python microservice for CV keeps Node main thread free; WebSocket streaming at 4 FPS
+3. **AI Reliability** — Multi-model fallback (Gemini→Groq) + prompt-driven behavior + heuristic report fallback = never fails
+
+### Be Ready to Draw
+- System architecture diagram (4 services + data flow)
+- Interview flow sequence diagram
+- ML pipeline: frame → MediaPipe → signals → stress score → WebSocket → React HUD
