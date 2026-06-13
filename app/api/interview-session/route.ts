@@ -1,20 +1,28 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import dbConnect from '@/lib/mongodb';
 import InterviewSession from '@/lib/models/InterviewSession';
 import Interview from '@/lib/models/Interview';
 
+async function getAuthIdentifiers(req: NextRequest) {
+  const { userId } = await auth();
+  const body = await req.json().catch(() => ({}));
+  const { guestId } = body;
+
+  return { userId, guestId };
+}
+
 // Create or update interview session
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const { userId, guestId } = await getAuthIdentifiers(req);
 
-    if (!userId) {
+    if (!userId && !guestId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { interviewId, action, messageData, metricsData } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { interviewId, action, messageData, metricsData } = body;
 
     if (!interviewId || !action) {
       return NextResponse.json(
@@ -29,17 +37,16 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case 'start':
-        // Create new session
         session = new InterviewSession({
           interviewId,
           userId,
+          guestId,
           messages: [],
           startTime: new Date(),
           status: 'active',
         });
         await session.save();
 
-        // Update interview status
         await Interview.findByIdAndUpdate(interviewId, {
           status: 'in-progress',
           startDateTime: new Date(),
@@ -67,7 +74,6 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Add message to session
         session.messages.push({
           id: messageData.id || Date.now().toString(),
           sender: messageData.sender,
@@ -84,8 +90,7 @@ export async function POST(req: NextRequest) {
         break;
 
       case 'add_messages_batch':
-        // Batch insert multiple messages in a single DB write
-        const { messagesData } = await req.json().catch(() => ({ messagesData: null }));
+        const { messagesData } = body;
         if (!messagesData || !Array.isArray(messagesData) || messagesData.length === 0) {
           return NextResponse.json(
             { error: 'messagesData array is required for batch insert' },
@@ -105,7 +110,6 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Use $push with $each for atomic batch insert — single DB write
         await InterviewSession.findByIdAndUpdate(batchSession._id, {
           $push: {
             messages: {
@@ -147,7 +151,6 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Update metrics
         session.metrics = { ...session.metrics, ...metricsData };
         await session.save();
         break;
@@ -165,22 +168,28 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // End session
         session.endTime = new Date();
         session.status = 'completed';
-        
-        // Calculate final metrics if not provided
+
         if (metricsData) {
           session.metrics = { ...session.metrics, ...metricsData };
         }
 
         await session.save();
 
-        // Update interview status
         await Interview.findByIdAndUpdate(interviewId, {
           status: 'completed',
           endDateTime: new Date(),
         });
+
+        if (guestId) {
+          await import('@/lib/models/GuestUser').then(({ default: GuestUser }) => {
+            GuestUser.findOneAndUpdate(
+              { guestId },
+              { $inc: { interviewCount: 1 }, lastInterviewAt: new Date() }
+            );
+          });
+        }
         break;
 
       default:
@@ -211,14 +220,14 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
+    const guestId = searchParams.get('guestId');
     const interviewId = searchParams.get('interviewId');
     const sessionId = searchParams.get('sessionId');
+
+    if (!userId && !guestId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     if (!interviewId && !sessionId) {
       return NextResponse.json(
@@ -243,8 +252,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Verify user owns this session
-    if (session.userId !== userId) {
+    const isOwner = (userId && session.userId === userId) || (guestId && session.guestId === guestId);
+    if (!isOwner) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

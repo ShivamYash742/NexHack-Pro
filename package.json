@@ -35,7 +35,8 @@
     "pdf2json": "^4.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -47,6 +48,7 @@
     "@types/node": "^20.19.39",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
     "@types/webidl-conversions": "^7.0.3",
     "@types/whatwg-url": "^13.0.0",
     "eslint": "^9",

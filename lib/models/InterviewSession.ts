@@ -35,7 +35,8 @@ export interface IInterviewMetrics {
 
 export interface IInterviewSession extends mongoose.Document {
   interviewId: string;
-  userId: string;
+  userId?: string;
+  guestId?: string;
   messages: IMessage[];
   metrics: IInterviewMetrics;
   startTime: Date;
@@ -87,7 +88,9 @@ const InterviewSessionSchema = new mongoose.Schema(
     },
     userId: {
       type: String,
-      required: true,
+    },
+    guestId: {
+      type: String,
     },
     messages: [MessageSchema],
     metrics: {
@@ -119,6 +122,7 @@ const InterviewSessionSchema = new mongoose.Schema(
 // Index for efficient queries
 InterviewSessionSchema.index({ interviewId: 1 });
 InterviewSessionSchema.index({ userId: 1 });
+InterviewSessionSchema.index({ guestId: 1 });
 InterviewSessionSchema.index({ status: 1 });
 
 const InterviewSessionModel = (mongoose.models.InterviewSession as mongoose.Model<IInterviewSession>) ||

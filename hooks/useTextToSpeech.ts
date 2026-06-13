@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export const useTextToSpeech = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -59,6 +59,8 @@ export const useTextToSpeech = () => {
      }
   }, [voices]);
 
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
   const speak = useCallback(
     (text: string, options?: { rate?: number; pitch?: number; volume?: number }): Promise<void> => {
       return new Promise((resolve, reject) => {
@@ -74,10 +76,16 @@ export const useTextToSpeech = () => {
 
         // Must cancel previous speech before starting new one safely
         window.speechSynthesis.cancel();
+        
+        // Resume engine in case it was stuck in a paused state (Chrome bug workaround)
+        window.speechSynthesis.resume();
 
         // Small delay to ensure previous cancel is processed
         setTimeout(() => {
           const utterance = new SpeechSynthesisUtterance(text);
+          // Keep a reference to prevent aggressive garbage collection in Chrome
+          utteranceRef.current = utterance;
+          
           if (selectedVoice) {
             utterance.voice = selectedVoice;
           }
@@ -92,11 +100,13 @@ export const useTextToSpeech = () => {
 
           utterance.onend = () => {
             setIsSpeaking(false);
+            utteranceRef.current = null;
             resolve();
           };
 
           utterance.onerror = (e) => {
             setIsSpeaking(false);
+            utteranceRef.current = null;
             if (e.error === 'interrupted') {
               resolve();
             } else {
@@ -109,8 +119,30 @@ export const useTextToSpeech = () => {
 
           try {
             window.speechSynthesis.speak(utterance);
+            // Chrome sometimes needs a periodic resume for long texts
+            const resumeInterval = setInterval(() => {
+              if (!window.speechSynthesis.speaking) {
+                clearInterval(resumeInterval);
+              } else {
+                window.speechSynthesis.resume();
+              }
+            }, 10000);
+            
+            // Clear interval on end/error
+            const originalOnEnd = utterance.onend;
+            utterance.onend = function(e) {
+              clearInterval(resumeInterval);
+              if (originalOnEnd) originalOnEnd.call(utterance, e);
+            };
+            const originalOnError = utterance.onerror;
+            utterance.onerror = function(e) {
+              clearInterval(resumeInterval);
+              if (originalOnError) originalOnError.call(utterance, e);
+            };
+            
           } catch (err) {
             setIsSpeaking(false);
+            utteranceRef.current = null;
             reject(err);
           }
         }, 100);

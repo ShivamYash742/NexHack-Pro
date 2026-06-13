@@ -10,8 +10,9 @@ export async function GET(
   try {
     const { id } = await params;
     const { userId } = await auth();
+    const guestId = req.nextUrl.searchParams.get('guestId');
 
-    if (!userId) {
+    if (!userId && !guestId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -27,7 +28,8 @@ export async function GET(
     }
 
     // Check if user owns this interview
-    if (interview.userId !== userId) {
+    const isOwner = (userId && interview.userId === userId) || (guestId && interview.guestId === guestId);
+    if (!isOwner) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -61,11 +63,13 @@ export async function PATCH(
   try {
     const { userId } = await auth();
     const { id } = await params;
-    if (!userId) {
+    
+    const body = await req.json();
+    const { status, guestId } = body;
+
+    if (!userId && !guestId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { status } = await req.json();
 
     if (
       !status ||
@@ -86,7 +90,8 @@ export async function PATCH(
     }
 
     // Check if user owns this interview
-    if (interview.userId !== userId) {
+    const isOwner = (userId && interview.userId === userId) || (guestId && interview.guestId === guestId);
+    if (!isOwner) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

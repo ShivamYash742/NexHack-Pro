@@ -11,12 +11,12 @@ import { getResumeSummaryPrompt } from '@/lib/promptHelper';
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
+    const formData = await req.formData();
+    const guestId = formData.get('guestId') as string;
 
-    if (!userId) {
+    if (!userId && !guestId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const formData = await req.formData();
     const file = formData.get('resume') as File;
 
     if (!file) {
@@ -69,17 +69,20 @@ export async function POST(req: NextRequest) {
     const prompt = getResumeSummaryPrompt(truncatedContent);
     const { text: resumeSummary } = await generateWithGroq(prompt);
 
-    // Connect to database and save/update user profile
+    // Connect to database and save/update user profile if logged in
     await dbConnect();
 
-    const userProfile = await UserProfile.findOneAndUpdate(
-      { userId },
-      {
-        resumeUrl: fileUrl,
-        resumeSummary,
-      },
-      { upsert: true, new: true }
-    );
+    let userProfile = null;
+    if (userId) {
+      userProfile = await UserProfile.findOneAndUpdate(
+        { userId },
+        {
+          resumeUrl: fileUrl,
+          resumeSummary,
+        },
+        { upsert: true, new: true }
+      );
+    }
 
     return NextResponse.json({
       success: true,

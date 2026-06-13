@@ -30,10 +30,12 @@ const InterviewComplete: React.FC<InterviewCompleteProps> = ({ interviewId, sess
     setGeneratingReport(true);
     setError(null);
     try {
+      const guestId = localStorage.getItem('guestId');
+      const body = { interviewId, sessionId, ...(faceAnalytics ? { faceAnalytics } : {}), ...(guestId && { guestId }) };
       const response = await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interviewId, sessionId, ...(faceAnalytics ? { faceAnalytics } : {}) }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();

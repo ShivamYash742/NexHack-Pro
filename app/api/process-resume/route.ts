@@ -9,17 +9,17 @@ import { getResumeSummaryPrompt } from '@/lib/promptHelper';
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
+    const body = await req.json();
+    const { fileUrl, fileContent, fileName, guestId } = body;
 
-    if (!userId) {
+    if (!userId && !guestId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const body = await req.json();
-    const { fileUrl, fileContent, fileName } = body;
     
     console.log('process-resume called with:', { 
       fileUrl, 
       fileName,
+      guestId,
       fileContentType: typeof fileContent,
       fileContentLength: fileContent?.length,
       isBase64PDF: fileContent?.startsWith('data:application/pdf')
@@ -86,17 +86,20 @@ export async function POST(req: NextRequest) {
 
     console.log('resumeSummary', resumeSummary);
 
-    // Connect to database and save/update user profile
+    // Connect to database and save/update user profile if logged in
     await dbConnect();
 
-    const userProfile = await UserProfile.findOneAndUpdate(
-      { userId },
-      {
-        resumeUrl: fileUrl,
-        resumeSummary,
-      },
-      { upsert: true, new: true }
-    );
+    let userProfile = null;
+    if (userId) {
+      userProfile = await UserProfile.findOneAndUpdate(
+        { userId },
+        {
+          resumeUrl: fileUrl,
+          resumeSummary,
+        },
+        { upsert: true, new: true }
+      );
+    }
 
     return NextResponse.json({
       success: true,

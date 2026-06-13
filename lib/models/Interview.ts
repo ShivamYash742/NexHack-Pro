@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 
 export interface IInterview extends mongoose.Document {
-  userId: string;
+  userId?: string;
+  guestId?: string;
   jobTitle: string;
   jobDescription?: string;
   userSummary: string;
@@ -21,7 +22,9 @@ const InterviewSchema = new mongoose.Schema(
   {
     userId: {
       type: String,
-      required: true,
+    },
+    guestId: {
+      type: String,
     },
     jobTitle: {
       type: String,
@@ -67,6 +70,9 @@ const InterviewSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+InterviewSchema.index({ userId: 1 });
+InterviewSchema.index({ guestId: 1 });
 
 const InterviewModel = (mongoose.models.Interview as mongoose.Model<IInterview>) ||
   mongoose.model<IInterview>('Interview', InterviewSchema);
