@@ -158,10 +158,12 @@ const Interview = ({
 
   const initializeSession = async () => {
     try {
+      const guestId = localStorage.getItem('guestId');
+      const body = { interviewId, action: 'start', ...(guestId && { guestId }) };
       const response = await fetch('/api/interview-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interviewId, action: 'start' }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -176,10 +178,12 @@ const Interview = ({
   const saveMessageToSession = useCallback(async (messageData: Record<string, unknown>) => {
     if (!sessionId) return;
     try {
+      const guestId = localStorage.getItem('guestId');
+      const body = { interviewId, action: 'add_message', messageData, ...(guestId && { guestId }) };
       await fetch('/api/interview-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interviewId, action: 'add_message', messageData }),
+        body: JSON.stringify(body),
       });
     } catch (error) {
       console.error('Error saving message:', error);
@@ -358,10 +362,12 @@ const Interview = ({
 
     if (sessionId) {
       try {
+        const guestId = localStorage.getItem('guestId');
+        const body = { interviewId, action: 'end', metricsData: finalMetrics, ...(guestId && { guestId }) };
         await fetch('/api/interview-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ interviewId, action: 'end', metricsData: finalMetrics }),
+          body: JSON.stringify(body),
         });
       } catch (error) {
         console.error('Error ending session:', error);

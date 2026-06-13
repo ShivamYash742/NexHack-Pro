@@ -40,14 +40,14 @@ export default function InterviewPage() {
       if (interviewData.status !== 'scheduled') return interviewData;
 
       try {
+        const guestId = localStorage.getItem('guestId');
+        const body = { status: 'in-progress', ...(guestId && { guestId }) };
         const response = await fetch(`/api/interview/${interviewId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            status: 'in-progress',
-          }),
+          body: JSON.stringify(body),
         });
 
         const data = await response.json();
@@ -70,7 +70,9 @@ export default function InterviewPage() {
   const fetchInterview = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/interview/${interviewId}`);
+      const guestId = localStorage.getItem('guestId');
+      const query = guestId ? `?guestId=${guestId}` : '';
+      const response = await fetch(`/api/interview/${interviewId}${query}`);
       const data = await response.json();
 
       if (data.success) {
@@ -100,14 +102,14 @@ export default function InterviewPage() {
     if (!interview || interview.status !== 'in-progress') return;
 
     try {
+      const guestId = localStorage.getItem('guestId');
+      const body = { status: 'completed', ...(guestId && { guestId }) };
       const response = await fetch(`/api/interview/${interviewId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          status: 'completed',
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();

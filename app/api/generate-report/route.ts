@@ -229,11 +229,12 @@ async function generateUnifiedReport(
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
-    if (!userId) {
+    const body = await req.json();
+    const { interviewId, sessionId: providedSessionId, faceAnalytics, guestId } = body;
+
+    if (!userId && !guestId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { interviewId, sessionId: providedSessionId, faceAnalytics } = await req.json();
 
     if (!interviewId) {
       return NextResponse.json(
@@ -253,7 +254,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (interview.userId !== userId) {
+    const isInterviewOwner = (userId && interview.userId === userId) || (guestId && interview.guestId === guestId);
+    if (!isInterviewOwner) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -276,7 +278,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (session.userId !== userId) {
+    const isSessionOwner = (userId && session.userId === userId) || (guestId && session.guestId === guestId);
+    if (!isSessionOwner) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

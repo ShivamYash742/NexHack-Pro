@@ -54,6 +54,9 @@ export default function NewInterviewPage() {
     try {
       setFetchLoading(true);
       const response = await fetch('/api/user-profile');
+      if (response.status === 401) {
+        return; // Guest user or unauthorized
+      }
       const data = await response.json();
 
       if (data.success && data.userProfile) {
@@ -100,6 +103,7 @@ export default function NewInterviewPage() {
           fileUrl: 'text-input',
           fileContent: resumeText,
           fileName: 'resume.txt',
+          guestId: localStorage.getItem('guestId'),
         }),
       });
 
@@ -137,6 +141,10 @@ export default function NewInterviewPage() {
       // Send file to server-side API route for Appwrite upload + AI processing
       const formData = new FormData();
       formData.append('resume', selectedFile);
+      const guestId = localStorage.getItem('guestId');
+      if (guestId) {
+        formData.append('guestId', guestId);
+      }
 
       const response = await fetch('/api/upload-resume', {
         method: 'POST',
@@ -194,6 +202,7 @@ export default function NewInterviewPage() {
         body: JSON.stringify({
           jobTitle,
           jobDescription,
+          guestId: localStorage.getItem('guestId'),
         }),
       });
 
@@ -239,6 +248,8 @@ export default function NewInterviewPage() {
           jobDescription,
           jobSummary,
           mentorId: selectedMentor,
+          guestId: localStorage.getItem('guestId'),
+          resumeSummary,
         }),
       });
 
