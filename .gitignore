@@ -2,7 +2,19 @@
 
 # dependencies
 /node_modules
-/.pnp
+# Python
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+model/.venv/
+
+# MediaPipe models and local data dumps
+*.task
+model/data/*.json
+
 .pnp.*
 .yarn/*
 !.yarn/patches
